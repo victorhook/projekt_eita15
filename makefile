@@ -1,5 +1,5 @@
 # Device information
-MCU    = atmega1284
+MCU    = atmega1284p
 F_CPU  = 16000000
 
 # Programmer args

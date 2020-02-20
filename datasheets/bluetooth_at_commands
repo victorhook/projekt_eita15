@@ -1,0 +1,27 @@
+[17:36:21:322] * AT                  Check if the command terminal work normally ␍␊
+[17:36:21:530] * AT+DEFAULT          Restore factory default⇥	⇥	⇥	   ␍␊
+[17:36:21:593] <break>
+[17:36:21:737] * AT+BAUD             Get/Set baud rate⇥	⇥	           ␍␊
+[17:36:21:928] * AT+RESET            Software reboot⇥	⇥	⇥	⇥	   ␍␊
+[17:36:22:136] * AT+ROLE             Get/Set current role.⇥	                   ␍␊
+[17:36:22:327] * AT+DISC             Disconnect connection                       ␍␊
+[17:36:22:534] * AT+ADVEN            Broadcast switch  ⇥	⇥	           ␍␊
+[17:36:22:726] * AT+ADVI             Broadcast interval⇥	⇥	           ␍␊
+[17:36:22:933] * AT+NINTERVAL        Connection interval                         ␍␊
+[17:36:23:124] * AT+POWE             Get/Set RF transmit power ⇥	⇥	   ␍␊
+[17:36:23:332] * AT+NAME             Get/Set local device name                   ␍␊
+[17:36:23:523] * AT+LADDR            Get local bluetooth address⇥	⇥	   ␍␊
+[17:36:23:730] * AT+VERSION          Get firmware, bluetooth, HCI and LMP version␍␊
+[17:36:23:922] * AT+TYPE             Binding and pairing settings⇥	⇥	   ␍␊
+[17:36:24:129] * AT+PIN              Get/Set pin code for pairing                ␍␊
+[17:36:24:337] * AT+UUID             Get/Set system SERVER_UUID .            ⇥	   ␍␊
+[17:36:24:528] * AT+CHAR             Get/Set system CHAR_UUID .            ⇥	   ␍␊
+[17:36:24:735] * AT+INQ              Search from device⇥	⇥	           ␍␊
+[17:36:24:926] * AT+RSLV             Read the scan list MAC address⇥	⇥	   ␍␊
+[17:36:25:134] * AT+CONN             Connected scan list device⇥	⇥	   ␍␊
+[17:36:25:325] * AT+CONA             Connection specified MAC⇥	⇥	           ␍␊
+[17:36:25:532] * AT+BAND             Binding from device⇥	⇥	           ␍␊
+[17:36:25:724] * AT+CLRBAND          Cancel binding    ⇥	⇥	           ␍␊
+[17:36:25:931] * AT+GETDCN           Number of scanned list devices⇥	⇥	   ␍␊
+[17:36:26:123] * AT+SLEEP            Sleep mode ⇥	⇥	                   ␍␊
+[17:36:26:330] * AT+HELP             List all the commands⇥	⇥	           ␍␊
