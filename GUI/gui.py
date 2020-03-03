@@ -50,7 +50,7 @@ class CenterFrame(Frame):
         small_frame = Frame(frame)
         small_frame.grid(row=4, columnspan=2)
 
-        blue = Button(small_frame, text='BLÅ', background='blue',
+        blue = Button(small_frame, text='TEST!', background='blue',
                     command=lambda: self.gui.send(struct.pack('B', 1 << 0)))
         blue.grid(row=0, column=0)
         red = Button(small_frame, text='RÖD', background='red',
