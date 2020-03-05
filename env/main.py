@@ -16,7 +16,7 @@ class RequestHandler(DefaultDelegate):
 
 
 TARGET_MAC = '50:65:83:0e:9d:5d'
-
+0
 scan = Scanner()
 scan.scan(1)
 

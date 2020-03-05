@@ -1,14 +1,5 @@
+#include "usart.h"
 #include <avr/io.h>
-
-#ifndef BAUD
-#define BAUD 9600
-#endif
-
-#ifndef F_CPU
-#define F_CPU 16000000
-#endif
-
-#define UBRR F_CPU/16/BAUD-1
 
 uint8_t read_byte() {
 	while (! (UCSR0A  & (1 << RXC0)) );

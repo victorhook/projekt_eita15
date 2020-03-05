@@ -38,6 +38,7 @@ SET_BITMAP           = 0x71      # Bitmap operation
 BATCH_WRITE          = 0x80      # Write mass data at a time
 
 
+
 """ Status codes """
 EXECUTING_COMMAND    = 0         # Executing command right.
 SYS_DONT_RECV_CMD    = 1         # System don't receive the command.

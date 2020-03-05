@@ -1,13 +1,14 @@
 from vc0706_reg import *
 import os
-import serial
+from serial import Serial
+from serial.serialutil import SerialException
 import struct
 import sys
 import time
 
-DEFAULT_PORT         = '/dev/ttyUSB0'
-DEFAULT_BAUD         = 38400
-DESIRED_BAUD         = 115200
+PORT_DEFAULT         = '/dev/ttyUSB0'
+BAUD_DEFAULT         = 38400
+BAUD_HIGH_SPEED      = 115200
 
 PROTOCOL             = 0x56
 SERIAL_NBR           = 0x00
@@ -32,7 +33,7 @@ PKT_STOP_CURR_FBUF   = [PROTOCOL, SERIAL_NBR, FBUF_CTRL, 0x01, 0x00]
 PKT_START_CURR_FBUF  = [PROTOCOL, SERIAL_NBR, FBUF_CTRL, 0x01, 0x02]
 PKT_GET_FBUF_LEN     = [PROTOCOL, SERIAL_NBR, GET_FBUF_LEN, 0x01, 0x00]
 PKT_READ_FBUF        = [PROTOCOL, 0x00, READ_FBUF, 0x0c, 0x00, 0x0a, 0x00, 0x00, 
-                                  0x00, 0x00, 0x00, 0x00, None, None, 0x01, 0x00]       
+                                  0x00, 0x00, 0x00, 0x00, None, None, 0x22, 0x00]       
 PKT_SET_IMG_SIZE     = [PROTOCOL, SERIAL_NBR, WRITE_DATA, 0x05,  0x04, 0x01, 0x00, 0x19] # + IMG SIZE (1 byte)
 PKT_READ_IMG_SIZE    = [PROTOCOL, SERIAL_NBR, READ_DATA, 0x04,  0x04, 0x01, 0x00, 0x19]
 
@@ -42,24 +43,29 @@ STATUS_OK            = 0
 TIMEOUT              = 0.2
 
 IMAGE_DIR            = os.path.join(os.path.dirname(__file__), 'images')
+IMAGE_NAME           = 'RaceCar'
 
-class VC0706:
 
-    def __init__(self, port=DEFAULT_PORT, baud=DESIRED_BAUD):
 
-        self.stream        = None
+class VC0706():
+
+    def __init__(self, port=PORT_DEFAULT, baud=BAUD_HIGH_SPEED, timeout=TIMEOUT):
+        
         self.port          = port
         self.baud          = baud
-        self.dir           = IMAGE_DIR
-        self.save_image    = False
         self.timeout       = TIMEOUT
-        self.images_taken  = 0
 
-    def save(self, photo):
-        #self.images_taken += 1
-        with open(os.path.join(self.dir, 'images%s.jpg' % self.images_taken), 'wb') as f:
-            f.write(bytearray(photo))
-        
+        self.dir           = IMAGE_DIR
+        self.image_name    = os.path.join(self.dir, '%s.jpg' % IMAGE_NAME)
+        self.save_image    = True
+        self.version       = None
+
+        self.err_handle    = sys.exit       # Error handling can be configured
+        self.stream        = None
+
+
+    def get_image_path(self):
+        return self.image_name
 
     def __enter__(self):
         self.connect()
@@ -68,84 +74,134 @@ class VC0706:
     def __exit__(self, *args):
         if self.stream:
             self.stream.close()
+            self.stream = None
 
-    """ Tries to connect to the VC0706 through serial port """
+
+    """ Tries to connect to the VC0706 through serial port 
+        and sets the baud rate to highets (115200) """
     def connect(self):
+
         if not self.stream:
+
+            # If port is open we connect, otherwise we call error handler
             try:
-                self.stream = serial.Serial(self.port, self.baud, timeout=self.timeout)
-                self.stream.flush()
-                print('Connected to VC0706 on port %s' % self.port)
+                self.stream = Serial(self.port, self.baud, timeout=self.timeout)
                 
-                self.get_version()
-                # Everything OK, ready to go!
-                #print('Baud rate: %s' % self.baud)
 
-            except Exception as e:
-                print(e.with_traceback())
-                print("Can't connect to port")
-                sys.exit(0)
+            except SerialException as e:
+                    print("Can't open port %s" % self.port)
+                    self.err_handle()
 
-    """ Set baud rate to the new and restart the camera """
+            print('Connected on port %s' % self.port)
+
+            if self.communication_ok():
+
+                self.version = self.get_version()
+                print('[VC0706] Version:   %s' % self.version)
+                print('[VC0706] Baud rate: %s' % self.baud)
+                
+                if self.baud != BAUD_HIGH_SPEED:
+                    self.set_baud_rate(BAUD_HIGH_SPEED)
+
+            else:
+                self.err_handle()
+
+
+    """ Returns the current version of the camera """
+    def get_version():
+        if self.stream:
+            self.send(PKT_GET_VERSION)
+            ack = self.read(5)
+            if self.ack_ok(ack):
+                version = self.read(reply[4])
+                print(version.decode())
+            else:
+                print('Error getting version!')
+                self.err_handle()
+
+
+    """ Finds the baud rate  that the camera currently is using and
+        adjusts the serial port accordingly. If no baud rate matches,
+        we return false to let caller handle the error              """
+    def communication_ok(self):
+        for baud in BAUDS.keys():
+            self.stream.baudrate = baud
+            self.stream.write(PKT_GET_VERSION)
+            reply = self.stream.read(5)
+ 
+            if len(reply) == DEFAULT_REPLY_SIZE:
+                self.stream.flushInput()
+                return reply[3] == STATUS_OK
+                    
+        return False
+
+
+    """ Set baud rate to the new and reconnect with camera """
     def set_baud_rate(self, baud):
-        self.baud = baud
-        self.stream.flush()
+
+        if self.baud != baud:
+            self.baud = baud
 
         packet = PKT_SET_BAUD
-        packet.append(BAUDS[baud][0])
-        packet.append(BAUDS[baud][1])
+        packet.append(BAUD_115200[0])
+        packet.append(BAUD_115200[1])
         self.send(packet)
-        
-        status = self.read(5)
-
-            # Try again
-        if status[3] != STATUS_OK:
-
-            self.stream.flush()
-            self.send(packet)
-            if status[3] != STATUS_OK:
-                print('Failed to change baud rate, exiting...')
-                sys.exit(0)
-
 
         self.stream.close()
-        time.sleep(0.001)
-        self.stream = self.open()
+        self.stream = Serial(PORT_DEFAULT, BAUD_HIGH_SPEED, timeout=TIMEOUT)
+        self.stream.baudrate = BAUD_HIGH_SPEED
+
+        self.stream.write(PKT_GET_VERSION)
+        
+        ack = self.read(5)
+        if not self.ack_ok(ack):
+            self.err_handle()
+
+
+    def save(self, photo):
+        with open(self.image_name, 'wb') as f:
+            f.write(bytearray(photo))
 
 
     def stop_fbuf(self):
-        self.stream.write(PKT_STOP_CURR_FBUF)
-        cmd, status, d_len = self._read_packet()
-        if status != STATUS_OK:
-            print('Problem stoppning fbuf')
+        self.send(PKT_STOP_CURR_FBUF)
+        ack = self.read(DEFAULT_REPLY_SIZE)
+        
+        if not self.ack_ok(ack):
+            print('Error stopping fbuf!')
+            self.err_handle()
 
     def start_fbuf(self):
-        self.stream.write(PKT_START_CURR_FBUF)
-        cmd, status, d_len = self._read_packet()
-        if status != STATUS_OK:
-            print('Problem starting fbuf')
-
+        self.send(PKT_START_CURR_FBUF)
+        ack = self.read(DEFAULT_REPLY_SIZE)
+        
+        if not self.ack_ok(ack):
+            print('Error starting fbuf!!')
+            self.err_handle()
 
     def get_fbuf_len(self):
         self.stream.write(PKT_GET_FBUF_LEN)
-        cmd, status, d_len = self._read_packet()
-        if status != STATUS_OK:
-            print('Problem reading fbuf')
+        ack = self.read(DEFAULT_REPLY_SIZE)
 
-        return self.stream.read(d_len)
+        if not self.ack_ok(ack):
+            print('Problem reading fbuf')
+            self.err_handle()
+
+        d_len = ack[4]
+        return self.read(d_len)
+
 
 
     def read_fbuf(self, size):
         PKT_READ_FBUF[-3] = size[3]
         PKT_READ_FBUF[-4] = size[2]
-        self.stream.write(PKT_READ_FBUF)
+        self.send(PKT_READ_FBUF)
 
-        status = self._read_packet()[1]
-        if status != STATUS_OK:
-            print('Error reading frame buffer!')
-            return
+        ack = self.read(DEFAULT_REPLY_SIZE)
+        if not self.ack_ok(ack):
+            print('Error reading FBUF!')
+            self.err_handle()
 
-       
         index = 0
         image_length = int.from_bytes(size, 'big')
 
@@ -155,21 +211,23 @@ class VC0706:
         remainder = image_length % 32
 
         while index < end:
-            photo += self.stream.read(32)
+            photo += self.read(32)
             index += 1
 
-        photo += self.stream.read(remainder)
+        photo += self.read(remainder)
 
-
-        status = self._read_packet()[1]
-        if status != STATUS_OK:
-            print('Error reading frame buffer!')
-            return
+        ack = self.read(DEFAULT_REPLY_SIZE)
+        if not self.ack_ok(ack):
+            print('Error in end of reading FBUF!')
+            print(self.pprint(ack))
+            self.err_handle()
 
         #photo = ' '.join('{:02X}'.format(b) for b in photo)
         
         return photo
 
+    def ack_ok(self, ack):
+        return len(ack) >= DEFAULT_REPLY_SIZE and ack[3] == STATUS_OK
 
     def enable_save(self):
         self.save_image = True
@@ -177,89 +235,15 @@ class VC0706:
     def disable_save(self):
         self.save_image = False
 
-
     def get_version(self):
-        
+
         self.send(PKT_GET_VERSION)
-        reply = self.stream.read(5)    
-
-            # Probably wrong baud rate, try reconnect with default settings!
-        if not reply:
-            self.baud = DEFAULT_BAUD
-            self.stream.close()
-            self.stream = serial.Serial(self.port, self.baud, timeout=self.timeout)
-
-            self.send(PKT_GET_VERSION)
-            reply = self.stream.read(5)        
-
-            if not reply or reply[3] != STATUS_OK:
-                print('Error connecting to camera, check wiring/settings')
-                sys.exit(0)
-
-
-            # Try to change baudrate to desired (High speed, 115200) and reconnect
-            self.baud = DESIRED_BAUD
-            self.stream.flush()
-            self.set_baud_rate(DESIRED_BAUD)
-            self.stream.close()
-            self.stream = self.open()
-
-            self.send(PKT_GET_VERSION)
-            reply = self.stream.read(5) 
-
-            if not reply or reply[3] != STATUS_OK:
-                print('Failed to run at full speed, using default baud rate (38400)...')
-                return
-            
-        version = self.read(reply[2])
-        
-#        print('Version:    %s' % version.decode())
- #       print('Baud rate:  %s' % self.baud)
-
-            
-    def open(self):
-        return serial.Serial(self.port, self.baud, timeout=self.timeout)
-
-
-    def _get_version(self):
-
-        self.stream.flushInput()
-
-        self.stream.timeout = 0.2
-        status = None
-
-        self.stream.write(PKT_GET_VERSION)
-
-        try:
-            cmd, status, d_len = self._read_packet()
-        
-        except:
-            # Wrong baudrate, try default!
-            self.baud = DEFAULT_BAUD
-            self.stream.baudrate = self.baud
-
-            try:
-                cmd, status, d_len = self._read_packet()
-            except Exception as e:
-                print('Error communicating with VC0706. Check baud rate or wiring')
-                sys.exit(0)
-
-
-            # If default works, set baud rate to requested!
-            baud_ok = self.set_baud_rate(DESIRED_BAUD)
-
-            if baud_ok:
-                self.baud = DESIRED_BAUD
-            else:
-                print("Can't change the baud rate, using default ...")
-        
-
+        cmd, status, d_len = self.read(DEFAULT_REPLY_SIZE)[2:]
         if status == STATUS_OK:
-            data = self.stream.read(d_len)
-            print('Version: %s' % data.decode())
+            return self.read(d_len).decode()
         else:
-            print('Error getting version')
-  
+            self.err_handle()
+
     
     def send(self, packet):
         if self.stream:
@@ -268,9 +252,6 @@ class VC0706:
     def read(self, len):
         if self.stream:
             return self.stream.read(len)
-
-    def _read_packet(self):
-        return self.stream.read(DEFAULT_REPLY_SIZE)[2:]
 
     def set_img_size(self, size):
         packet = PKT_SET_IMG_SIZE
@@ -302,13 +283,6 @@ class VC0706:
         return photo
 
 
-    def restart(self):
-        self.send(PKT_RESTART)
-        time.sleep(.001)
-        self.get_version()
-
-
-
     def pprint(self, packet): 
         print(' '.join('{:02X}'.format(b) for b in packet))
 
@@ -317,5 +291,4 @@ class VC0706:
 if __name__ == "__main__":
 
     with VC0706() as camera:
-        camera.restart()
-        
+        camera.photo()
