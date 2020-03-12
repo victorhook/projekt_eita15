@@ -1,4 +1,6 @@
+from datetime import datetime
 import glob
+import logging
 import os
 import sys
 from serial import Serial
@@ -13,6 +15,16 @@ BAUDS    = [9600, 19200, 38400, 57600, 115200]
 DATABITS = [5, 6, 7, 8]
 STOPBITS = [1, 2]
 
+LOG_DEFAULT_MODE  = 'w'
+LOG_DEFAULT_NAME  = 'ov7670.log'
+LOG_DEFAULT_DIR   = 'log/'
+LOG_DEFAULT_LEVEL = logging.INFO
+
+OUTPUT_FORMATS = [ 'hex', 'ascii' ]
+INPUT_FORMATS  = [ 'bin', 'hex', 'ascii' ]
+INPUT_WIDTH    = 30
+
+TIME_FORMAT = '%m-%d-%y  %H:%M'
 
 FRAME_ARGS = {
     'borderwidth': 3,
@@ -21,13 +33,32 @@ FRAME_ARGS = {
     'pady': 10
 }
 
+class Logger(logging.Logger):
+
+    file = os.path.join(LOG_DEFAULT_DIR, LOG_DEFAULT_NAME)
+
+    def __init__(self):
+
+        super().__init__(LOG_DEFAULT_NAME)
+        self.setLevel(LOG_DEFAULT_LEVEL)
+
+        if not os.path.exists(LOG_DEFAULT_DIR):
+            os.mkdir(LOG_DEFAULT_DIR)
+
+        handler = logging.FileHandler(self.file, mode=LOG_DEFAULT_MODE)
+        handler.setLevel(LOG_DEFAULT_LEVEL)
+        handler.setFormatter(logging.Formatter('%(message)s'))
+
+        self.addHandler(handler)
+
+
 class Configs:
 
-    log_to_file = False
-    log_dir     = ''
+    log_to_file   = True
+    log_dir       = Logger.file
+    #output_format = 
 
-Configs.log_dir     = 'log/log1'
-Configs.log_to_file = True
+
 
 
 class Register(tk.Entry):
@@ -276,7 +307,6 @@ class OV7670:
         self.opened = False
         self.stream = Serial(None, baud, timeout=timeout)
 
-    
     def send(self, command):
         if self.opened:
             self.stream.write(command)
@@ -310,7 +340,7 @@ class Gui(tk.Tk):
         self.camera = camera
 
         self.main_frame = tk.Frame(self)
-        self.main_frame.pack()
+        self.main_frame.pack() 
 
         self.top_frame = tk.Frame(self.main_frame)
         self.top_frame.pack()
@@ -318,7 +348,7 @@ class Gui(tk.Tk):
         self.config_frame = self.ConfigFrame(self.top_frame)
         self.config_frame.grid(row=0, column=0, sticky='w')
 
-        self.log_frame = self.LogFrame(self.top_frame)
+        self.log_frame = self.LogFrame(self.top_frame, self)
         self.log_frame.grid(row=0, column=1, sticky='w')
 
         self.communication_frame = self.CommunicationFrame(self.main_frame, self)
@@ -330,10 +360,10 @@ class Gui(tk.Tk):
         self.memory_area = self.MemoryArea(self.main_frame, height)
         self.memory_area.pack(side='right')
 
+        self.log = Logger()
 
     def send_msg(self, msg):
         print(msg)
-        
         
 
     class MemoryArea(tk.Frame):
@@ -355,9 +385,9 @@ class Gui(tk.Tk):
             self.registers = REGISTERS
             for row, reg in enumerate(self.registers):
                 tk.Label(self.container, text=reg).grid(row=row + 1, column=0, sticky='w')
-                #reg.entry = tk.Entry(self.container)
-                #reg.entry.insert(0, reg.value)
-                #reg.entry.grid(row=row + 1, column=1)
+                reg.entry = tk.Entry(self.container)
+                reg.entry.insert(0, reg.value)
+                reg.entry.grid(row=row + 1, column=1)
 
             self.label_name.grid(row=0, column=0)
             self.label_value.grid(row=0, column=1)
@@ -373,34 +403,70 @@ class Gui(tk.Tk):
 
         def __init__(self, master, root):
             super().__init__(master, FRAME_ARGS)
+            self.camera = root.camera
 
-            self.send_box = tk.Entry(self)
-            self.send_lbl = tk.Label(self, text='Send: ')
-            self.send_btn = tk.Button(self, text='Send', comman=lambda : root.send_msg(self.send_box.get()))
+            self.status = tk.Label(self, text='')
+            self.send_box = tk.Entry(self, width=INPUT_WIDTH)
+            self.send_box.bind('<Return>', self.send)
+            self.send_lbl = tk.Label(self, text='Input: ')
+            
+            self.output_lbl = tk.Label(self, text='Output format')
+            self.output_drpdwn = ttk.Combobox(self, values=OUTPUT_FORMATS, state='readonly')
+            self.output_drpdwn.current(0)
+
+            self.input_lbl = tk.Label(self, text='Input format')
+            self.input_drpdwn = ttk.Combobox(self, values=INPUT_FORMATS, state='readonly')
+            self.input_drpdwn.current(0)
+
+            self.status.grid(row=0, columnspan=2)
+            self.send_lbl.grid(row=1, column=0)
+            self.send_box.grid(row=1, column=1)
+
+            self.output_lbl.grid(row=0, column=2)
+            self.output_drpdwn.grid(row=1, column=2)
+
+            self.input_lbl.grid(row=0, column=3)
+            self.input_drpdwn.grid(row=1, column=3)
 
             self.rcv_box  = tk.Text(self)
+            self.rcv_box.grid(row=2, columnspan=4)
 
-            self.send_lbl.grid(row=0, column=0)
-            self.send_box.grid(row=0, column=1)
-            self.send_btn.grid(row=0, column=2)
-            self.rcv_box.grid(row=1, columnspan=3)
+
+        def send(self, msg):
+            self.camera.send(msg)
+            self.status.configure(fg = 'green', text = 'Message sent')
+
+        def read(self, msg):
+            pass
+
 
     class LogFrame(tk.Frame):
 
-        def __init__(self, master):
+        def __init__(self, master, root):
             super().__init__(master)
+            self.root = root
 
             self.check_log = ttk.Checkbutton(self, text='Log to file', command=lambda : self.chk_btn('log'))
+            self.entry_log = tk.Entry(self)
+            self.entry_log.insert(0, Logger.file)
 
             self.check_log.grid(row=0, column=0)
+            self.entry_log.grid(row=1, column=0)
+
+            self.timer_lbl = tk.Label(self)
+            self.timer_lbl.grid(row=0, column=1)
+
+            self.timer()
+
+
+        def timer(self):
+            self.timer_lbl['text'] = datetime.now().strftime(TIME_FORMAT)
+            self.root.after(1000, self.timer)
 
         def chk_btn(self, btn):
             if btn == 'log':
                 Configs.log_to_file = 'selected' in self.check_log.state()
                 
-
-            
-
 
     class ConfigFrame(tk.Frame):
 
@@ -450,9 +516,7 @@ class Gui(tk.Tk):
 
 if __name__ == "__main__":
     cam = OV7670()
-
     gui = Gui(cam)
-
     gui.mainloop()
 
 
