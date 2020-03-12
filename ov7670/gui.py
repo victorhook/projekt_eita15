@@ -13,7 +13,22 @@ BAUDS    = [9600, 19200, 38400, 57600, 115200]
 DATABITS = [5, 6, 7, 8]
 STOPBITS = [1, 2]
 
-MEMORY_DEFAULT_HEIGHT = 40
+
+FRAME_ARGS = {
+    'borderwidth': 3,
+    'relief': 'ridge',
+    'padx': 10,
+    'pady': 10
+}
+
+class Configs:
+
+    log_to_file = False
+    log_dir     = ''
+
+Configs.log_dir     = 'log/log1'
+Configs.log_to_file = True
+
 
 class Register(tk.Entry):
 
@@ -25,7 +40,6 @@ class Register(tk.Entry):
         self.editable = editable
         self.value    = self.default
         self.entry    = None
-        self.label    = None
 
     def __str__(self):
         return '[%s]   %s' % (self.addr, self.name)
@@ -298,58 +312,94 @@ class Gui(tk.Tk):
         self.main_frame = tk.Frame(self)
         self.main_frame.pack()
 
-        self.config_frame = self.ConfigFrame(self.main_frame)
-        self.config_frame.pack()
+        self.top_frame = tk.Frame(self.main_frame)
+        self.top_frame.pack()
 
-        self.communication_frame = self.CommunicationFrame(self.main_frame)
+        self.config_frame = self.ConfigFrame(self.top_frame)
+        self.config_frame.grid(row=0, column=0, sticky='w')
+
+        self.log_frame = self.LogFrame(self.top_frame)
+        self.log_frame.grid(row=0, column=1, sticky='w')
+
+        self.communication_frame = self.CommunicationFrame(self.main_frame, self)
         self.communication_frame.pack(side='left')
 
-        self.memory_area = self.MemoryArea(self.main_frame)
+        self.update()
+        height = self.communication_frame.winfo_height()
+
+        self.memory_area = self.MemoryArea(self.main_frame, height)
         self.memory_area.pack(side='right')
 
 
-    class MemoryArea(tk.Canvas):
+    def send_msg(self, msg):
+        print(msg)
+        
+        
 
-        def __init__(self, master):
-            super().__init__(master)
+    class MemoryArea(tk.Frame):
+
+        def __init__(self, master, height):
+            super().__init__(master, height=height, **FRAME_ARGS)
+
+            self.canvas = tk.Canvas(self, height=height - 20)
             
-            self.frame = tk.Frame(self)
+            self.container = tk.Frame(self.canvas)
+            self.container.bind('<Configure>', lambda x: 
+                            self.canvas.configure(scrollregion=self.canvas.bbox('all')))
 
-            self.lbl_reg_name = tk.Label(self, text='Register name')
-            self.lbl_value = tk.Label(self, text='Value')
+            self.scroll = tk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
 
-            self.reg_frame = tk.Frame(self)
+            self.label_name = tk.Label(self.container, text='Register name')
+            self.label_value = tk.Label(self.container, text='Value')
 
             self.registers = REGISTERS
-
             for row, reg in enumerate(self.registers):
-                tk.Label(self.reg_frame, text=reg).grid(row=row, column=0, sticky='w')
-                entry = tk.Entry(self.reg_frame)
-                entry.insert(0, reg.value)
-                entry.grid(row=row, column=1)
+                tk.Label(self.container, text=reg).grid(row=row + 1, column=0, sticky='w')
+                #reg.entry = tk.Entry(self.container)
+                #reg.entry.insert(0, reg.value)
+                #reg.entry.grid(row=row + 1, column=1)
 
-            self.scroll = tk.Scrollbar(master, orient=tk.VERTICAL, command=self.yview)
-            self.configure(yscrollcommand=self.scroll.set)
+            self.label_name.grid(row=0, column=0)
+            self.label_value.grid(row=0, column=1)
 
-            self.lbl_reg_name.grid(row=0, column=0)
-            self.lbl_value.grid(row=0, column=1)
-
-            self.reg_frame.grid(row=1, columnspan=2)
-
+            self.canvas.create_window((0, 0), window=self.container, anchor='nw')
+            self.canvas.configure(yscrollcommand = self.scroll.set)
+            
+            self.canvas.pack(side='left')
             self.scroll.pack(side='right', fill='y')
-            self.configure(scrollregion=self.bbox('all'))
+
 
     class CommunicationFrame(tk.Frame):
 
-        def __init__(self, master):
-            super().__init__(master)
+        def __init__(self, master, root):
+            super().__init__(master, FRAME_ARGS)
 
             self.send_box = tk.Entry(self)
+            self.send_lbl = tk.Label(self, text='Send: ')
+            self.send_btn = tk.Button(self, text='Send', comman=lambda : root.send_msg(self.send_box.get()))
 
             self.rcv_box  = tk.Text(self)
 
-            self.send_box.pack()
-            self.rcv_box.pack()
+            self.send_lbl.grid(row=0, column=0)
+            self.send_box.grid(row=0, column=1)
+            self.send_btn.grid(row=0, column=2)
+            self.rcv_box.grid(row=1, columnspan=3)
+
+    class LogFrame(tk.Frame):
+
+        def __init__(self, master):
+            super().__init__(master)
+
+            self.check_log = ttk.Checkbutton(self, text='Log to file', command=lambda : self.chk_btn('log'))
+
+            self.check_log.grid(row=0, column=0)
+
+        def chk_btn(self, btn):
+            if btn == 'log':
+                Configs.log_to_file = 'selected' in self.check_log.state()
+                
+
+            
 
 
     class ConfigFrame(tk.Frame):
