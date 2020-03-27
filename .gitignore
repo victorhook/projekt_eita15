@@ -1,4 +1,5 @@
-pyenv/
+env/
 .vscode/
 /.metadata/
 /bin/
+
