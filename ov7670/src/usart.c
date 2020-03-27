@@ -1,15 +1,11 @@
 #include <avr/io.h>
 #include "usart.h"
 
-#ifndef BAUD
-#define BAUD 115200
-#endif
-
-#ifndef F_CPU
-#define F_CPU 8000000
-#endif
-
-#define UBRR F_CPU/16/BAUD-1
+/* Formula doesn't work, use magic numbers straight from Datasheet instead
+ * F_CPU = 20 Mhz
+ * Baud  = 38400
+ */
+#define UBRR_BAUD 32
 
 uint8_t read_byte() {
 	while (! (UCSR0A  & (1 << RXC0)) );
@@ -106,7 +102,13 @@ void print_uint16(uint16_t nbr) {
 
 void init_usart() {
 	// Set Baud rate
-	UBRR0 = 12;
+	//UBRR0 = UBRR_BAUD;
+
+	// 1 Mbps baud rate
+	//UBRR0 = 1;
+
+	// Enable high speed USART
+	//UCSR0A |= 1 << U2X0;
 
 	// Enable RX and TX
 	UCSR0B |= (1 << RXEN0) | (1 << TXEN0);

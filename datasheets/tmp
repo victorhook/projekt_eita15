@@ -1,0 +1,3 @@
+[0x12] - 08 | Pre-defined settings
+[0x6b] - 4a | PLL_Multiplier
+[0x11] - 04 | CLKRC (Internal clock)

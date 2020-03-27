@@ -1,9 +1,6 @@
 #ifndef USART_H
 #define USART_H
 
-#define BAUD 115200
-#define F_CPU 8000000
-
 uint8_t read_byte();
 
 void send_byte(uint8_t data);

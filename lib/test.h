@@ -1,2 +1,0 @@
-#define HEY 0
-
