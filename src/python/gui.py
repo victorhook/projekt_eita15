@@ -12,11 +12,11 @@ class Gui(tk.Tk):
 
         self.title('Anoroc')
 
-        self._img_frame = tk.Frame(self, width = 1280, height = 720)
+        self._img_frame = tk.Frame(self, width = 720, height = 480)
         self._img_frame.pack_propagate(0)
         self._img_frame.pack()
 
-        self._image = tk.Label(self._img_frame)
+        self._image = tk.Label(self._img_frame, width = 720, height = 480)
         self._image.pack()
 
         self._fps = tk.Label(self)

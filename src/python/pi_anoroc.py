@@ -1,8 +1,8 @@
 from gui import Gui
+from hotspot import Hotspot
 
 import io
 from PIL import ImageTk, Image
-from subprocess import Popen, PIPE
 import socket
 import struct
 import sys
@@ -16,45 +16,6 @@ HOTSPOT_NAME = 'Anoroc'
 HOST_ADDR    = '192.168.0.7'
 PORT         = 13337
 IP_PATTERN   = '10.42.0.\d{1,3}'
-
-# Scan for devices nmap -sP 10.42.0.0/24
-
-
-class HotSpot:
-    
-    @staticmethod
-    def open_hotspot():
-        # Clears arp cache
-        
-
-
-        pipe = Popen(['iw', 'dev'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-        status = str(pipe.stdout.read())
-
-        # Checking if we're already runnig hotspot first!
-        if HOTSPOT_NAME not in status:
-            # Open hotspot
-            Popen(['nmcli', 'connection', 'up', HOTSPOT_NAME], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-
-        # Hotspot should be up and running
-
-    @staticmethod
-    def close_hotspot():
-        # Close hotspot, catch error msg in stderr, nothing to do with it.
-        # nmcli handles any potential issues
-        Popen(['nmcli', 'connection', 'down', HOTSPOT_NAME], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-
-    @staticmethod
-    def get_connected_ip():
-        # Check the arp cache for known IP addresses
-        pipe = Popen(['arp', '-a'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        stdout = str(pipe.stdout.read())
-
-        # Try to match found IP addressees with the expected one for the hotspot
-        connected_ips = re.compile(IP_PATTERN).finditer(stdout)
-
-        # Returns a list of IP addresses connected to hotspot (Should only be one)
-        return [ip.group() for ip in connected_ips]
 
 
 class PiAnoroc:
@@ -71,39 +32,49 @@ class PiAnoroc:
         self.stop_flag = None        # Flag for synchronizing threads  
 
 
-    """ Tries to open a network socket to the given IP and port, and
-        then waits for a connection to be made                          
+    """ 
+        Tries to open a network socket to the given IP and port, and
+        then waits for a connection to be made.
+        This method is given its own thread and enters an infinite-loop
+        (if connection is succesful) and only exits when the user clicks disconnect
     """
     def open(self, stop_flag):
 
         self.stop_flag = stop_flag
 
         # Open socket
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Allow re-use of TCP port without needing to wait the TIME_WAIT delay
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         try:
-            self.sock.bind((HOST_ADDR, PORT))
+            sock.bind((HOST_ADDR, PORT))
         except:
             print('Failed to bind to port %s with address %s' % (PORT, HOST_ADDR))
             sys.exit(0)
 
         # Start listening for connections
-        self.sock.listen(0)
+        sock.listen(0)
 
         # Client accepted!
-        con, addr = self.sock.accept()
+        self.sock, addr = sock.accept()
         self.ip = addr[0]
-        self.con = con.makefile('rb')       
+        self.con = self.sock.makefile('rb')  
 
         print('Connected to %s on port %s' % (self.ip, PORT))
 
         self.run()
  
+
     def close(self):
         try:
+            # Tell the camera that we're done!
+            self.sock.send(struct.pack('<L', 0))
+            # Properly close the stream
+            self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
-            self.con.close()
-        except:
+        except Exception as e:
+            print(e)
             # Failed to close socket and/or stream, not much to do
             pass
 
@@ -117,14 +88,15 @@ class PiAnoroc:
     # Main thread for image capturing
     def run(self):
 
+        # Variables for figuring out the fps
         timer  = time.time()
         fps    = 0
 
-        img_stream = io.BytesIO()   # Buffer stream for handling input image
+        # Buffer stream for handling input image
+        img_stream = io.BytesIO()   
 
+        # We keep updating the GUI frames as long as we're connected
         while not self.stop_flag.is_set():
-
-            t_start = time.time()     # Counter, used for calculating fps
 
             # Read data length of current image frame
             img_len = self.read_img_len()
@@ -149,9 +121,11 @@ class PiAnoroc:
                 fps = 0
 
 
+            # Update the gui
             self.gui.img_update(ImageTk.PhotoImage(img))
             self.gui.update()
 
+            # Rewind the bytestream and truncate it, to make it ready to receivde new data
             img_stream.seek(0)
             img_stream.truncate()
 
@@ -160,16 +134,20 @@ class PiAnoroc:
         self.close()
 
 
+    # Wrapper method
     def read_img_len(self):
         # Read a 32-bit integer from the connection
         return struct.unpack('<L', self.con.read(struct.calcsize('<L')))[0]
 
-
+    """
+        The class can be used with PiAnoroc() as ... :
+        with the following methods. This ensures correct opening
+        and closing of sockets
+    """
     def __exit__(self, *_):
         self.close()
 
     def __enter__(self):
-        # Open connection and return a reference to the newly created object
         self.open()
         return self
 
@@ -181,6 +159,4 @@ if __name__ == "__main__":
     gui = Gui()
     gui.set_pi_anoroc(PiAnoroc(gui))
     
-    
-
     gui.mainloop()
