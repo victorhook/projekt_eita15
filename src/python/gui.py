@@ -1,3 +1,5 @@
+from pi_anoroc import PiAnoroc
+
 import json
 import logging
 import os
@@ -209,10 +211,11 @@ class Gui(tk.Tk):
     # Adds a reference to the network stream
     def set_pi_anoroc(self, pi_anoroc):
         self.pi_anoroc = pi_anoroc
+        print(self.pi_anoroc)
 
     # Wrapper for calling update on the VideoFrame object
     def img_update(self, img):
-        self.video_frame.img_update(img)
+        self.frame_video.img_update(img)
 
     def fps_update(self, fps):
         self.frame_video.fps.set('FPS: %s' % fps)
@@ -259,6 +262,12 @@ class Gui(tk.Tk):
 
             self.speedometer = self.SpeedoMeter(self, root)
             self.speedometer.pack()
+
+            self.btn_connect = tk.Button(self, text='Connect', command=root._cb_connect)
+            self.btn_connect.pack(side='left')
+
+            self.btn_disconnect = tk.Button(self, text='Disconnect', command=root._cb_connect)
+            self.btn_disconnect.pack(side='right')
 
         class SpeedoMeter(tk.Canvas):
 
@@ -329,12 +338,12 @@ class Gui(tk.Tk):
 
 
 
-            tmp_img = Image.open(TMP_CAR).resize((root._video_width, root._video_height))
-            tmp_img = ImageTk.PhotoImage(tmp_img)
+            #tmp_img = Image.open(TMP_CAR).resize((root._video_width, root._video_height))
+            #tmp_img = ImageTk.PhotoImage(tmp_img)
 
             # The image is displayed in a label
-            self._image = tk.Label(self, width=root._video_width, height=root._video_height, image=tmp_img)
-            self._image.image = tmp_img
+            self._image = tk.Label(self, width=root._video_width, height=root._video_height)
+            #self._image.image = tmp_img
             self._image.pack()
 
             self.pack_propagate(0)
@@ -369,6 +378,7 @@ if __name__ == "__main__":
     os.system('xset r off')
 
     gui = Gui()
+    gui.set_pi_anoroc(PiAnoroc(gui))
     gui.mainloop()
 
     # Turn aurorepeat back on

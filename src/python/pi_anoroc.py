@@ -1,4 +1,4 @@
-from gui import Gui
+#from gui import Gui
 from hotspot import Hotspot
 
 import io
@@ -149,6 +149,7 @@ class PiAnoroc:
 
     def __enter__(self):
         self.open()
+        print('open')
         return self
 
 
