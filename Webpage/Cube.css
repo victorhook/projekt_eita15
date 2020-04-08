@@ -12,10 +12,10 @@ body {
   }
   .swiper-container {
     width: 90%;
-    height: 90%;
+    height: 80%;
     position: absolute;
     left: 5%;
-    top: 5%;
+    top: 10%;
   }
   .swiper-slide {
     background-position: center;
