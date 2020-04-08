@@ -3,11 +3,12 @@
     height: 8%;
     background-color: black;
     display: block;
+    
 }
 
 .header{
     height: 100%;
-    width: 80%;
+    width: 90%;
     display: block;
     margin: 0 auto;
 }
@@ -16,6 +17,7 @@
     display: table;
     float: left;
 }
+
 .header-text h1{
     color: white;
     height: 100%;
@@ -31,11 +33,17 @@
     height: 100%;
     float: right;
 }
+.navigation :hover{
+    color: gray;
+}
 .navigation a{
     height: 100%;
     display: table;
     float: left;
     padding: 0px 20px;
+}
+.navigation a:last-child{
+    padding-right: 0;
 }
 .navigation a li{
     display: table-cell;
@@ -43,4 +51,5 @@
     color: white;
     height: 100%;
     font-size: 16px;
+
 }
