@@ -1,41 +1,41 @@
-from bluepy.btle import *
+
 from callback import Callback
-from logger import Log
 
+
+import bluepy.btle as bt
+import struct
 import threading
+import time
 
-SCAN_TIMEOUT   = 1
+import logging
+
+SCAN_TIMEOUT   = 2
 TARGET_MAC     = '50:65:83:0e:9d:5d'
 USART_HANDLER  = 37
 
-BASE           = 'GUI/'
-LOG_OUTPUT     = BASE + 'log/log'
+"""
+    The HM-10 BLE can be programmed with AT-commands
+    AT => OK
+    AT+HELP => INFO
+    AT+BAUD => BAUD RATE
+    AT+BAUD[0-8] => SET BAUD RATE
+    AT+BAUD4 = 9600
+    AT+BAUD8 = 115200
+"""
 
-if __name__ == '__main__':
 
-    import glob
-    import logging
-    import logging.handlers
+class Controller(bt.DefaultDelegate):
 
-    LOG_FILENAME = 'logging_rotatingfile_example.out'
+    """
 
-    logger = logging.getLogger('TestLog')
-    logger.setLevel(logging.INFO)
-
-    handler = logging.FileHandler(LOG_FILENAME)
-
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-
-    logger.info("hey!")
-
-class Controller(DefaultDelegate):
+    """
 
     def __init__(self):
-        self.scan = Scanner()
-        self.connected = False
+
         self.device = None
-        self.usart = None
+        self.stream = None
+        self.stop_flag = threading.Event()
+
 
         """ Callbacks """
         # Called when bluetooth is connected
@@ -56,92 +56,195 @@ class Controller(DefaultDelegate):
         # Called when a packet is received from the device
         self.packet_received = Callback()
         
-        # Flag for thread-handing
-        self.is_alive = False
 
-        """ Default log settings """
-        self.log = Log(mode='w+')
-        self.log.info('Session started')
+
+
+    def add_default_callbacks(self):
+        self.connected.add_callback(lambda MAC: print('Connected to %s' % MAC))
+        self.disconnected.add_callback(lambda: print('Disconnected'))
+        self.connection_failed.add_callback(lambda: print('Connection failed'))
+        self.device_not_found.add_callback(lambda: print('Device not found'))
+        self.already_connected.add_callback(lambda: print('Already connected to %s' % self.device))
+        self.packet_received.add_callback(lambda data: print('[Data] {}'.format(data)))
 
 
     """ Scans nearby devices and connects to the target if not 
         already connected. Also sets the usart handler to
-        send and receive messages                           """                       
+        send and receive messages (like a socket stream)         """                       
     def connect(self):
 
-        if not self.connected:
+        if not self.device:       
 
-            self.scan.scan(SCAN_TIMEOUT)
+            # Scans for nearby devices
+            scan = bt.Scanner()
+            scan.scan(SCAN_TIMEOUT)
 
-            for dev in self.scan.getDevices():      # Check if devices match target
-
+            for dev in scan.getDevices():      # Check if devices match target
+                
+                # Check is target MAC is found
                 if dev.addr == TARGET_MAC:
                     
                     if dev.connectable:
-            
-                        self.device = Peripheral(dev)
-                        self.device.setDelegate(self)
-                        self.connected = True
-                        self.connected.call()              
-                        # self.gui.update_status('Connected to %s' % TARGET_MAC)
+                        
+                        # Make a connection to the target and set callbacks to bluepy API
+                        # (This is done by inheriting DefaultDelegate class)
+                        self.device = bt.Peripheral(dev)
+                        self.device.withDelegate(self)
 
-                        # Sets the correct handler for the usart
+                        # Sets the correct handler for the usart (allows stream-like API)
                         for char in self.device.getCharacteristics():
                             if char.getHandle() == USART_HANDLER:       
-                                self.usart = char
+                                self.stream = char
 
-                        self.gui.device_connected()
+                        # Let the rest of the program know that we're connected!
+                        self.connected.call(TARGET_MAC)              
+
+                        # Start infinite-communication-loop
+                        self.run()
+                        
+                        # Should not be reached
                         return
 
                     else:
                         self.connection_failed.call()       
-                        #self.gui.update_status('Failed to connect to device')
                         return
             
             self.device_not_found.call()
-            #self.gui.update_status('Device not found...')
 
         else:
             self.already_connected.call()
-            #self.gui.update_status('Already connected')
 
 
     def send(self, packet):
-        if not self.usart is None:
-            self.usart.write(packet, True)
+        if self.stream:
+            self.stream.write(packet, True)
 
 
     def disconnect(self):
-        if self.connected:
+        if self.device:
             self.device.disconnect()
-            self.connected = False
             self.device = None
             self.usart = None   
    
 
+    def __enter__(self):
+        threading.Thread(target=self.connect).start()
+        return self
+
+
+    def __exit__(self, *args):
+        self.stop_flag.set()
+        self.disconnect()
+        self.send('Exiting!')
+
+
     def run(self):
-        self.is_alive = True
 
-        while self.is_alive:
-            pass
+        # Make sure that we're still connected
+        if self.device:
 
-    def is_alive():
-        return self.is_alive
+            # Enter infinite-loop, running as long as programs wants us to
+            while not self.stop_flag.is_set():
 
-    def kill(self):
-        self.is_alive = False
-        self.device = None
+                try:
+                    self.device.waitForNotifications(1)
+                    
+                except Exception as e:
+                    self.disconnected.call()
 
+        else:
+            self.disconnected.call()
+
+
+    
     # Callback from connected Peripheral
+    # c_handle is only needed if multiple devices are used
     def handleNotification(self, c_handle, data):
-        self.packet_received(data)
-        #self.gui.print(data)
-        #print(data)
+        try:
+            x, y, z = struct.unpack('BBB', data)
+            self.packet_received.call(x, y, z)
+        except Exception as e:
+            print(e)
 
 
-    # Callback from Low Energy device when scanner is active
-    def handleDiscovery(self, scan_entry, is_new_dev, is_new_data):
-        pass
+
+import tkinter as tk
+
+SAMPLE_LIMIT = 10
+
+class Textbox(tk.Frame):
+
+    def __init__(self, master):
+        super().__init__(master)
+
+        self.x1 = tk.Label(self, text='X: ')
+        self.x1.grid(row=0, column=0)
+
+        self.y1 = tk.Label(self, text='Y: ')
+        self.y1.grid(row=1, column=0)
+
+        self.z1 = tk.Label(self, text='Z: ')
+        self.z1.grid(row=2, column=0)
+
+        self._x, self._y, self._z = tk.IntVar(), tk.IntVar(), tk.IntVar()
+
+        self.x2 = tk.Label(self, textvariable=self._x)
+        self.x2.grid(row=0, column=1)
+        self.y2 = tk.Label(self, textvariable=self._y)
+        self.y2.grid(row=1, column=1)
+        self.z2 = tk.Label(self, textvariable=self._z)
+        self.z2.grid(row=2, column=1)
+
+        self.samples = 0
+        self.x = 0
+        self.y = 0
+        self.z = 0
+
+    def update(self, x, y, z):
+
+        if self.samples == SAMPLE_LIMIT:
+            
+            self._x.set(int(self.x / self.samples))
+            self._y.set(int(self.y / self.samples))
+            self._z.set(int(self.z / self.samples))
+
+            self.x = 0
+            self.y = 0
+            self.z = 0
+            self.samples = 0
+        
+        else:
+            self.x += x
+            self.y += y
+            self.z += z
+            self.samples += 1
 
 if __name__  == '__main__':
+    
+    root = tk.Tk()
+
     ct = Controller()
+
+    textbox = Textbox(root)
+    textbox.grid(row=0, column=0)
+
+    entry = tk.Entry(root, width=40)
+    entry.grid(row=0, column=1)
+
+
+    send = tk.Button(root, width=20, height=10, text='Send')
+    send.bind('<Button-1>', lambda data : ct.send(entry.get().encode()))
+    send.grid(row=1, columnspan=2)
+
+    connect = tk.Button(root, text='Connect', 
+                    command=lambda: threading.Thread(target=ct.connect).start())
+    connect.grid(row=2, column=0)
+
+    disconnect = tk.Button(root, text='Disconnect', command=ct.disconnect)
+    disconnect.grid(row=2, column=1)
+
+    ct.packet_received.add_callback(lambda x, y, z: textbox.update(x, y, z))
+    
+
+    root.mainloop()
+

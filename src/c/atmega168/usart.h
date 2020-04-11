@@ -2,11 +2,11 @@
 #define USART_H
 
 #ifndef BAUD
-#define BAUD 115200
+#define BAUD 9600
 #endif
 
 #ifndef F_CPU
-#define F_CPU 20000000
+#define F_CPU 8000000
 #endif
 
 /* Calculation for setting the right baud rate in the UBRR register */
@@ -15,24 +15,11 @@
 /* Initializes the Usart with the given baud rate */
 void init_usart();
 
-/* Sends a single byte through USART
- * A macro is used to save function overhead */
-#define send_byte(data) {\
-		while (! (UCSR0A & (1 << UDRE0)) ); \
-		UDR0 = data;\
-	}
+/* Sends a single byte through USART */
+void send_byte(uint8_t data);
 
-/* Reads a single byte through USART
- * A macro is used to save function overhead */
-
-#define read_byte() {\
-		while ( !(UCSR0A & (1 << RXC0)) ); \
-		UDR0; \
-	}
-
-
-/* Sends an array of bytes, with a given length */
-void send_bytes(uint8_t *bytes, uint8_t len);
+/* Reads a single byte through USART */
+uint8_t read_byte();
 
 /* Flushes the Usart stream, removing any data that's stuck */
 void flush();

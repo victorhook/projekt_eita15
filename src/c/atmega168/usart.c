@@ -5,7 +5,7 @@
 void init_usart() {
 
 	// Baud rate register
-	UBRR0 = BAUDR;
+	UBRR0 = 12;
 
 	// Enable Recieve and transmit
 	UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
@@ -18,11 +18,20 @@ void init_usart() {
 
 }
 
-/* Sends an array of bytes, with a given length */
-void send_bytes(uint8_t *bytes, uint8_t len) {
-	for (uint8_t i = 0; i < len; i++) {
-		send_byte(*bytes++);
-	}
+/* Sends a single byte through USART */
+void send_byte(uint8_t data) {
+	// Wait until transmit buffer is empty
+	while (! (UCSR0A & (1 << UDRE0)) );
+	// Put data in data register
+	UDR0 = data;
+}
+
+/* Reads a single byte through USART */
+uint8_t read_byte() {
+	// Wait until data is received
+	while ( !(UCSR0A & (1 << RXC0)) );
+	// Return new data
+	return UDR0;
 }
 
 /* Flushes the Usart stream, removing any data that's stuck */
