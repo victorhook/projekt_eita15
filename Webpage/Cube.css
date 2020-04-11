@@ -1,0 +1,23 @@
+html, body {
+    position: relative;
+    height: 100%;
+  }
+body {
+    background: gray;
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    color:#000;
+    margin: 0;
+    padding: 0;
+  }
+  .swiper-container {
+    width: 90%;
+    height: 80%;
+    position: absolute;
+    left: 5%;
+    top: 10%;
+  }
+  .swiper-slide {
+    background-position: center;
+    background-size: cover;
+  }
