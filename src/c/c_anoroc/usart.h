@@ -22,14 +22,8 @@ void init_usart();
 		UDR0 = data;\
 	}
 
-/* Reads a single byte through USART
- * A macro is used to save function overhead */
-
-#define read_byte() {\
-		while ( !(UCSR0A & (1 << RXC0)) ); \
-		UDR0; \
-	}
-
+/* Reads a single byte through USART */
+uint8_t read_byte();
 
 /* Sends an array of bytes, with a given length */
 void send_bytes(uint8_t *bytes, uint8_t len);

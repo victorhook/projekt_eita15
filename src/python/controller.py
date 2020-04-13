@@ -9,7 +9,7 @@ import time
 
 import logging
 
-SCAN_TIMEOUT   = 2
+SCAN_TIMEOUT   = 3
 TARGET_MAC     = '50:65:83:0e:9d:5d'
 USART_HANDLER  = 37
 
@@ -57,23 +57,23 @@ class Controller(bt.DefaultDelegate):
         self.packet_received = Callback()
         
 
+        self.add_default_callbacks()
 
 
     def add_default_callbacks(self):
         self.connected.add_callback(lambda MAC: print('Connected to %s' % MAC))
-        self.disconnected.add_callback(lambda: print('Disconnected'))
+        #self.disconnected.add_callback(lambda: print('Disconnected'))
         self.connection_failed.add_callback(lambda: print('Connection failed'))
         self.device_not_found.add_callback(lambda: print('Device not found'))
         self.already_connected.add_callback(lambda: print('Already connected to %s' % self.device))
-        self.packet_received.add_callback(lambda data: print('[Data] {}'.format(data)))
 
 
     """ Scans nearby devices and connects to the target if not 
         already connected. Also sets the usart handler to
         send and receive messages (like a socket stream)         """                       
     def connect(self):
-
-        if not self.device:       
+        
+        if self.device is None:       
 
             # Scans for nearby devices
             scan = bt.Scanner()
@@ -117,7 +117,7 @@ class Controller(bt.DefaultDelegate):
 
     def send(self, packet):
         if self.stream:
-            self.stream.write(packet, True)
+            self.stream.write(packet)
 
 
     def disconnect(self):
@@ -161,8 +161,7 @@ class Controller(bt.DefaultDelegate):
     # c_handle is only needed if multiple devices are used
     def handleNotification(self, c_handle, data):
         try:
-            x, y, z = struct.unpack('BBB', data)
-            self.packet_received.call(x, y, z)
+            self.packet_received.call(data)
         except Exception as e:
             print(e)
 
@@ -174,67 +173,52 @@ SAMPLE_LIMIT = 10
 
 class Textbox(tk.Frame):
 
-    def __init__(self, master):
+    def __init__(self, master, controller):
         super().__init__(master)
 
-        self.x1 = tk.Label(self, text='X: ')
-        self.x1.grid(row=0, column=0)
+        self.ct = controller
 
-        self.y1 = tk.Label(self, text='Y: ')
-        self.y1.grid(row=1, column=0)
+        self.glider = tk.Scale(self, command=self.scale_upd, from_=0, to=64, label="SPEED")
+        self.glider.pack()
 
-        self.z1 = tk.Label(self, text='Z: ')
-        self.z1.grid(row=2, column=0)
+        self.value = 0
 
-        self._x, self._y, self._z = tk.IntVar(), tk.IntVar(), tk.IntVar()
-
-        self.x2 = tk.Label(self, textvariable=self._x)
-        self.x2.grid(row=0, column=1)
-        self.y2 = tk.Label(self, textvariable=self._y)
-        self.y2.grid(row=1, column=1)
-        self.z2 = tk.Label(self, textvariable=self._z)
-        self.z2.grid(row=2, column=1)
-
-        self.samples = 0
-        self.x = 0
-        self.y = 0
-        self.z = 0
-
-    def update(self, x, y, z):
-
-        if self.samples == SAMPLE_LIMIT:
-            
-            self._x.set(int(self.x / self.samples))
-            self._y.set(int(self.y / self.samples))
-            self._z.set(int(self.z / self.samples))
-
-            self.x = 0
-            self.y = 0
-            self.z = 0
-            self.samples = 0
+    def ct_callback(self, data):
+        value = struct.pack('B', self.value)
+        #self.ct.send(value)
+        self.ct.send(value)
+        print(data)
         
-        else:
-            self.x += x
-            self.y += y
-            self.z += z
-            self.samples += 1
+
+    def scale_upd(self, data):
+        self.value = int(data)
+
+
+
+def pwm(data):
+
+    value = struct.unpack_from('B', data)[0]
+    print(value)
+
 
 if __name__  == '__main__':
     
     root = tk.Tk()
+    root.title('INSANELY FAST BANDVAGN')
 
     ct = Controller()
 
-    textbox = Textbox(root)
+    textbox = Textbox(root, ct)
     textbox.grid(row=0, column=0)
 
+    """
     entry = tk.Entry(root, width=40)
     entry.grid(row=0, column=1)
-
 
     send = tk.Button(root, width=20, height=10, text='Send')
     send.bind('<Button-1>', lambda data : ct.send(entry.get().encode()))
     send.grid(row=1, columnspan=2)
+    """
 
     connect = tk.Button(root, text='Connect', 
                     command=lambda: threading.Thread(target=ct.connect).start())
@@ -243,8 +227,7 @@ if __name__  == '__main__':
     disconnect = tk.Button(root, text='Disconnect', command=ct.disconnect)
     disconnect.grid(row=2, column=1)
 
-    ct.packet_received.add_callback(lambda x, y, z: textbox.update(x, y, z))
+    ct.packet_received.add_callback(textbox.ct_callback)
     
-
     root.mainloop()
 

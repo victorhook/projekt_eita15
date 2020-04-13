@@ -18,6 +18,12 @@ void init_usart() {
 
 }
 
+/* Reads a single byte through Usart */
+uint8_t read_byte() {
+		while ( !(UCSR0A & (1 << RXC0)) );
+		return UDR0;
+	}
+
 /* Sends an array of bytes, with a given length */
 void send_bytes(uint8_t *bytes, uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {

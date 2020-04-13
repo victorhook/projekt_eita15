@@ -31,7 +31,25 @@ void init_distance_measurement() {
 	ULTRA_SENSOR_DDR |= (1 << TRIG_PIN);
 }
 
+void init_motor_pwm() {
+	// Clear OCX on Compare match, output low
+	TCCR1A |= (1 << COM1A1);
 
+	// Fast PWM, ICRX as top
+	TCCR1A |= (1 << WGM11) | (1 << WGM12);
+	TCCR1B |= (1 << WGM13);
+
+	// Prescaler: 8 -> 20MHz => 2.5MHz
+	TCCR1B |= 1 << CS11;
+
+	// Top is set as 64 => PWM freq ~= 39kHz
+	ICR1 = 64;
+	// According do datasheet, typical current control is 50 kHz
+	// This means we can take 8 bit input and divided by 4, eg: INPUT >> 2
+
+	// Sets pin as output
+	PWM_MOTOR_DDR |= (1 << PWM_MOTOR_PIN);
+}
 
 uint16_t measure_distance() {
 
@@ -67,4 +85,18 @@ uint16_t measure_distance() {
 	return timer;
 }
 
+/* Debug function */
+void init_adc() {
+	// ADC
+	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2);
+	ADMUX |= (1 << REFS0);
+	ADMUX |= (1 << ADLAR);
 
+	// Enable ADC
+	ADCSRA |= (1 << ADEN);
+
+	/* Collecting data: */
+	//ADCSRA |= (1 << ADSC);
+	//while (ADCSRA & (1 << ADSC));
+	//uint8_t data = ADCH;
+}
