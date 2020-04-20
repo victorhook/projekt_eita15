@@ -18,7 +18,7 @@
     float: left;
 }
 
-.header-text h1{
+.header-text h1 a{
     color: white;
     height: 100%;
     display: table-cell;
@@ -26,7 +26,7 @@
     font-size: 32px;
     font-weight: 300;
 }
-.header-text h1 span{
+.header-text h1 a span{
     font-weight: 800;
 }
 .navigation{
