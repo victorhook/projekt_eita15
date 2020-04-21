@@ -13,7 +13,7 @@ import tkinter as tk
 
 
 HOTSPOT_NAME = 'Anoroc'
-HOST_ADDR    = '192.168.0.7'
+HOST_ADDR    = '10.42.0.1'
 PORT         = 13337
 IP_PATTERN   = '10.42.0.\d{1,3}'
 

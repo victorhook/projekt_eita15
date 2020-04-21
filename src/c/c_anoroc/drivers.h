@@ -3,10 +3,12 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <string.h>
-
 #define F_CPU 20000000
 #include <util/delay.h>
+
+#include "globals.c"
+#include "usart.h"
+#include "leds.h"
 
 #define ECHO_PIN PA1
 #define TRIG_PIN PA2
@@ -48,6 +50,7 @@ void init_motor_pwm();
  * (In reality, this means chaning the value of the compare register)	*/
 #define adjust_pwm(pwm_value) {\
 	OCR1A = pwm_value;\
+	OCR1B = pwm_value;\
 }\
 
 

@@ -55,10 +55,16 @@ class Gui(tk.Tk):
         self.frame_nav.pack(fill='x')
 
         self.frame_video = self.VideoFrame(self.frame_main, self)
-        self.frame_video.pack(side='right')
+        self.frame_video.pack()
 
-        self.frame_sidebar = self.SideFrame(self.frame_main, self)
-        self.frame_sidebar.pack(side='left')
+        self.btn_connect = tk.Button(self, text='Connect', command=self._cb_connect)
+        self.btn_connect.pack(side='left')
+
+        self.btn_disconnect = tk.Button(self, text='Disconnect', command=self._cb_connect)
+        self.btn_disconnect.pack(side='right')
+
+        #self.frame_sidebar = self.SideFrame(self.frame_main, self)
+        #self.frame_sidebar.pack(side='left')
 
 
 

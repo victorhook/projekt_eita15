@@ -1,5 +1,18 @@
 #include "drivers.h"
 
+/** ----- INTERRUPTS ----- **/
+
+ISR(PCINT2_vect) {
+	if (PINC & (1 << PORTC7)) {
+		connection_state = connected;
+	} else {
+		connection_state = disconnected;
+	}
+}
+
+
+/** ----- Utility functions ----- **/
+
 // We're using pin PA0 (ADC0) as input
 void init_battery_checker() {
 	// Choosing AREF as voltage reference
@@ -33,7 +46,7 @@ void init_distance_measurement() {
 
 void init_motor_pwm() {
 	// Clear OCX on Compare match, output low
-	TCCR1A |= (1 << COM1A1);
+	TCCR1A |= (1 << COM1A1) | (1 << COM1B1);
 
 	// Fast PWM, ICRX as top
 	TCCR1A |= (1 << WGM11) | (1 << WGM12);
@@ -49,6 +62,7 @@ void init_motor_pwm() {
 
 	// Sets pin as output
 	PWM_MOTOR_DDR |= (1 << PWM_MOTOR_PIN);
+	PWM_MOTOR_DDR |= (1 << PORTD4);
 }
 
 uint16_t measure_distance() {
@@ -83,6 +97,25 @@ uint16_t measure_distance() {
 	TCCR1B = 0;
 
 	return timer;
+}
+
+void steer(direction dir, uint8_t thrust) {
+
+	switch (dir) {
+	case FORWARD:
+
+		break;
+	case BACKWARDS:
+
+			break;
+	case RIGHT:
+
+			break;
+	case LEFT:
+
+			break;
+	}
+
 }
 
 /* Debug function */
