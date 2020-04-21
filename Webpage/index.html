@@ -12,15 +12,15 @@
   <div class="header-container">
     <div class="header">
       <div class="header-text">
-        <h1>ANO<span>ROC</span></h1>
+        <h1><a style="text-decoration:none" href="index.html">ANO<span>ROC</span></a></h1>
       </div>
 
       <ul class="navigation">
-        <a><li>Del1</li></a>
-        <a><li>Del2</li></a>
-        <a><li>Del3</li></a>
-        <a><li>Del4</li></a>
-        <a><li>Info</li></a>
+        <a href="del1.html"><li>Del1</li></a>
+        <a href="del2.html"><li>Del2</li></a>
+        <a href="del3.html"><li>Del3</li></a>
+        <a href="del4.html"><li>Del4</li></a>
+        <a href="info.html"><li>Info</li></a>
       </ul>
     </div>
   </div>
@@ -37,15 +37,39 @@
         style="background-image:url(./images/3.jpg)">
     </div>  
     </div>
+    <div class="swiper-pagination"></div>
+  </div>
 
   </div>
 
-    <script src="swiper.js"></script>
-    <script>
-         var swiper = new Swiper('.swiper-container', {
-      effect: 'cube',
-      loop: true
-    });
-    </script>
+  <script src="swiper.js"></script>
+  <script>
+  let counter=0;
+       var swiper = new Swiper('.swiper-container', {
+    effect: 'cube',
+    loop: true,
+    pagination: {
+      el: '.swiper-pagination',
+      type: 'bullets',
+      clickable: true,
+    },
+    on: {
+      slideNextTransitionEnd: function (){
+          counter++;
+          if(counter>3){
+            counter=1;
+          }
+          console.log(counter);
+        },
+        slidePrevTransitionEnd: function(){
+          counter--;
+          if(counter<1){
+            counter=3;
+          }
+          console.log(counter);
+        },  
+      }
+  });
+  </script>
 </body>
 </html>
