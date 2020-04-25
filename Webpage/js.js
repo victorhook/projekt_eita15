@@ -16,7 +16,9 @@
             counter=1;
           }
           console.log(counter);
-          
+          if(counter==1){
+            document.getElementById("text12").style.visibility="hidden";
+          }
         },
         slidePrevTransitionEnd: function(){
           counter--;
