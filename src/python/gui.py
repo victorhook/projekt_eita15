@@ -40,10 +40,6 @@ STYLE_BUTTONS = {
 }
 
 
-
-TMP_CAR = os.path.join(BASE_DIR, CONFIG_DIR, 'car.jpg')
-
-
 class Gui(tk.Tk):
 
     """
@@ -59,9 +55,15 @@ class Gui(tk.Tk):
         self.build_root_window()              # Sets all build variables for the main window
         self.load_images()
 
-        self.pi_anoroc = None                 # Reference to pi_anoroc API
-        self.stop_flag = threading.Event()    # Stop flag for synchronizing with pi_anoroc
+        # Initializes the logger
+        self._init_logger()
+
+        self.pi_flag = threading.Event()    # Stop flag for synchronizing with pi_anoroc
         self.log_flag  = threading.Event()    # Stop flag for synchronizing with logging monitor
+
+        self.pi_anoroc = PiAnoroc(self, self._hostspot_name, self._host_addr,
+                                self._host_port, self.pi_flag, self.log)          
+        
 
         ## -- Main container for all frames -- ##
         self.frame_main = tk.Frame(self, **STYLE_FRAME)
@@ -88,8 +90,7 @@ class Gui(tk.Tk):
         self.log_frame = self.LogFrame(self.frame_main, self, self.log_flag, **STYLE_FRAME, height=200)
         self.log_frame.pack(fill='x')
 
-        # Initializes the logger
-        self._init_logger()
+
 
 
 
@@ -162,39 +163,40 @@ class Gui(tk.Tk):
         self.log_file = config['log_file']
         self.log_mode = config['log_mode']
 
+        # Network settings
+        self._hostspot_name = config['hotspot_name']
+        self._host_addr = config['host_addr']
+        self._host_port = int(config['host_port'])
+
+        # Override default close operation
         self.protocol('WM_DELETE_WINDOW', self._exit)
 
 
     # Ensures that all threads are stopped before we close the GUI
     def _exit(self):
         self.log_flag.set()
-        self.stop_flag.set()
+        self.pi_flag.set()
         self.destroy()
 
     # Connects to anoroc
-    def _cb_connect(self):
-        print('Connecting...')
-        if self.pi_anoroc:
-            self.stop_flag.clear()
-            threading.Thread(target=self.pi_anoroc.open, args=(self.stop_flag, )).start()
+    def _connect(self):
+        # Ensure flag is cleared before we start PiAnoroc thread
+        self.pi_flag.clear()
+        threading.Thread(target=self.pi_anoroc.open).start()
     
 
     # Disconnects to anoroc
-    def _cb_disconnect(self):
-        print('Disconnecting...')
-        if self.pi_anoroc:
-            self.stop_flag.set()
-
-    # Adds a reference to the network stream
-    def set_pi_anoroc(self, pi_anoroc):
-        self.pi_anoroc = pi_anoroc
+    def _disconnect(self):
+        # Set the stop flag for PiAnoroc
+        self.pi_flag.set()
+        self.pi_anoroc.close()
 
     # Wrapper for calling update on the VideoFrame object
     def img_update(self, img):
         self.frame_video.img_update(img)
 
     def fps_update(self, fps):
-        self.frame_video.fps.set('FPS: %s' % fps)
+        self.frame_status.fps_var.set(fps)
 
 
     # Initializes a simple logger for information display
@@ -211,11 +213,6 @@ class Gui(tk.Tk):
 
         self.log.addHandler(handler)
         self.log.info('New session started')
-
-    def _connect(self):
-        pass
-    def _disconnect(self):
-        pass
 
 
     """
@@ -255,7 +252,6 @@ class Gui(tk.Tk):
             self.fps_status.grid(row=2, column=0, sticky='w', pady=10)
 
             self.fps_var = tk.IntVar()
-            self.fps_var.set(20)
 
             self.fps_status_var = tk.Label(self, textvariable=self.fps_var, **STYLE_LABEL)
             self.fps_status_var.grid(row=2, column=1, sticky='w', pady=10)
@@ -352,7 +348,7 @@ class Gui(tk.Tk):
     class VideoFrame(tk.Frame):
         """ Container for the camera live-feed """
         def __init__(self, master, root, **kwargs):
-            super().__init__(master, width=root._video_width, height=root._video_height+50, **STYLE_FRAME, **kwargs)
+            super().__init__(master, width=root._video_width, height=root._video_height, **STYLE_FRAME, **kwargs)
 
             self.root = root    # Reference to root window
             #tmp_img = Image.open(TMP_CAR).resize((root._video_width, root._video_height))
@@ -404,17 +400,11 @@ class Gui(tk.Tk):
         def monitor_log(self, stop_flag):
             log_file = os.path.join(self.root.base_dir, self.root.log_file)
 
-            try:
-                log = open(log_file)
-
+            with open(log_file) as log:
                 while not stop_flag.is_set():
                     line = log.readline()
                     if line:
                         self.text.insert('end', line)
-            
-            finally:
-                log.close()
-            
 
 
 if __name__ == "__main__":
@@ -423,7 +413,6 @@ if __name__ == "__main__":
     os.system('xset r off')
 
     gui = Gui()
-    gui.set_pi_anoroc(PiAnoroc(gui))
     gui.mainloop()
 
     # Turn aurorepeat back on

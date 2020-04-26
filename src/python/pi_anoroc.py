@@ -11,26 +11,20 @@ import time
 import threading
 import tkinter as tk
 
-
-HOTSPOT_NAME = 'Anoroc'
-HOST_ADDR    = '10.42.0.1'
-PORT         = 13337
-IP_PATTERN   = '10.42.0.\d{1,3}'
-
-
 class PiAnoroc:
 
-    def __init__(self, gui, port=PORT, addr=HOST_ADDR):
+    def __init__(self, gui, hotspot_name, addr, port, stop_flag, log):
 
         self.sock      = None        # Network socket
         self.ip        = None        # Client IP
         self.con       = None        # File-like object for read/write access through socket
+        self.hotspot_name = hotspot_name
         self.port      = port        # TCP Port
         self.addr      = addr        # IP4 address
+        self.log       = log
         
         self.gui       = gui         # Reference to the GUI to update image
-        self.stop_flag = None        # Flag for synchronizing threads  
-
+        self.stop_flag = stop_flag        # Flag for synchronizing threads  
 
     """ 
         Tries to open a network socket to the given IP and port, and
@@ -38,51 +32,63 @@ class PiAnoroc:
         This method is given its own thread and enters an infinite-loop
         (if connection is succesful) and only exits when the user clicks disconnect
     """
-    def open(self, stop_flag):
+    def open(self):
 
-        self.stop_flag = stop_flag
+        self.log.info('Listening on port %s at attdress %s' % (self.port, self.addr))
 
         # Open socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Allow re-use of TCP port without needing to wait the TIME_WAIT delay
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         try:
-            sock.bind((HOST_ADDR, PORT))
-        except:
-            print('Failed to bind to port %s with address %s' % (PORT, HOST_ADDR))
-            sys.exit(0)
+            self.sock.bind((self.addr, self.port))
+        except Exception as error:
+            self.log.info('Failed to bind to port %s with address %s' % (self.port, self.addr))
+            self.log.info('Python: {}'.format(error))
+            return
 
         # Start listening for connections
-        sock.listen(0)
+        self.sock.listen(0)
 
         # Client accepted!
-        self.sock, addr = sock.accept()
-        self.ip = addr[0]
-        self.con = self.sock.makefile('rb')  
+        try:
+            client, addr = self.sock.accept()
+            self.ip = addr[0]
+            self.con = client.makefile('rb')  
 
-        print('Connected to %s on port %s' % (self.ip, PORT))
+            self.log.info('Connected to AnorocPi')
+            self.run()
 
-        self.run()
+        except:
+            # sock.accept() throws an exception if not finished
+            # This only happens if we disconnect before client connects
+            sys.exit(0)
  
 
     def close(self):
+        self.log.info('Closing port %s' % self.port)
+
         try:
-            # Tell the camera that we're done!
-            self.sock.send(struct.pack('<L', 0))
-            # Properly close the stream
-            self.sock.shutdown(socket.SHUT_RDWR)
-            self.sock.close()
-        except Exception as e:
-            print(e)
+            if self.con:
+                # Properly close the stream
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+            else:
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+                self.sock.detach()
+
+        except Exception as error:
             # Failed to close socket and/or stream, not much to do
-            pass
+            self.log.info('Error when closing port %s' % self.port)
+            self.log.info('Python: {}'.format(error))
+
 
         # Reset connection variables
         self.sock       = None
         self.ip         = None
         self.con        = None
-        self.stop_flag  = None
 
 
     # Main thread for image capturing
@@ -94,6 +100,8 @@ class PiAnoroc:
 
         # Buffer stream for handling input image
         img_stream = io.BytesIO()   
+
+        self.log.info('Start streaming video...')
 
         # We keep updating the GUI frames as long as we're connected
         while not self.stop_flag.is_set():
@@ -131,7 +139,7 @@ class PiAnoroc:
 
 
         # We're done sampling frames, let's close the connections!
-        self.close()
+        #self.close()
 
 
     # Wrapper method
@@ -151,13 +159,3 @@ class PiAnoroc:
         self.open()
         print('open')
         return self
-
-
-if __name__ == "__main__":
-
-    #HotSpot.open_hotspot()
-
-    gui = Gui()
-    gui.set_pi_anoroc(PiAnoroc(gui))
-    
-    gui.mainloop()

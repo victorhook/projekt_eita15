@@ -1,0 +1,8 @@
+[Unit]
+Description=Automatically start streaming real-time video to Host when we're connected to wifi hotspot
+
+[Service]
+ExecStart=/usr/sbin/anoroc.sh
+
+[Install]
+WantedBy=multi-user.target
