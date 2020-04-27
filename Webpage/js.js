@@ -7,7 +7,7 @@
     pagination: {
       el: '.swiper-pagination',
       type: 'bullets',
-      clickable: true,
+      clickable: false,
     },
     on: {
       slideNextTransitionEnd: function (){
@@ -17,7 +17,18 @@
           }
           console.log(counter);
           if(counter==1){
-            document.getElementById("text12").style.visibility="hidden";
+            document.getElementById("text1").style.display = "block";
+            document.getElementById("text2").style.display = "none";
+            document.getElementById("text3").style.display = "none";          }
+          else if(counter==2){
+            document.getElementById("text1").style.display = "none";
+            document.getElementById("text2").style.display = "block";
+            document.getElementById("text3").style.display = "none";
+          }
+          else{
+            document.getElementById("text1").style.display = "none";
+            document.getElementById("text2").style.display = "none";
+            document.getElementById("text3").style.display = "block";
           }
         },
         slidePrevTransitionEnd: function(){
@@ -26,6 +37,20 @@
             counter=3;
           }
           console.log(counter);
+          if(counter==1){
+            document.getElementById("text1").style.display = "block";
+            document.getElementById("text2").style.display = "none";
+            document.getElementById("text3").style.display = "none";          }
+          else if(counter==2){
+            document.getElementById("text1").style.display = "none";
+            document.getElementById("text2").style.display = "block";
+            document.getElementById("text3").style.display = "none";
+          }
+          else{
+            document.getElementById("text1").style.display = "none";
+            document.getElementById("text2").style.display = "none";
+            document.getElementById("text3").style.display = "block";
+          }
         },  
       }
   });

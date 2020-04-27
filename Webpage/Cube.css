@@ -11,10 +11,10 @@ body {
     padding: 0;
   }
   .swiper-container {
-    width: 90%;
-    height: 80%;
+    width: 60%;
+    height: 60%;
     position: absolute;
-    left: 5%;
+    left: 20%;
     top: 10%;
   }
   .swiper-slide {
