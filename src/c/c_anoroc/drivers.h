@@ -1,5 +1,5 @@
-#ifndef ANOROC_UTILS_H
-#define ANOROC_UTILS_H
+#ifndef DRIVERS_H
+#define DRIVERS_H
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -8,16 +8,6 @@
 
 #include "globals.c"
 #include "usart.h"
-#include "leds.h"
-
-#define ECHO_PIN PA1
-#define TRIG_PIN PA2
-#define ULTRA_SENSOR_PORT PORTA
-#define ULTRA_SENSOR_PIN PINA
-#define ULTRA_SENSOR_DDR DDRA
-
-#define PWM_MOTOR_DDR DDRD
-#define PWM_MOTOR_PIN PORTD5
 
 // We're using pin PA0 (ADC0) as input
 void init_battery_checker();
@@ -28,12 +18,12 @@ void init_battery_checker();
 uint8_t measure_battery();
 
 // Sets the correct IO pins for Ultra-sound sensor
-void init_distance_measurement();
+void init_us_sensor();
 
 /* Measures the distance in front of the sensor robot
  * The value returned is raw timer-data and is transformed
  * to actual distance at host (to save processing power)   */
-uint16_t measure_distance();
+void measure_distance();
 
 
 /* Initializes the PWM signal for the H-bdrige drv8833
@@ -46,6 +36,8 @@ uint16_t measure_distance();
 void init_motor_pwm();
 
 
+uint8_t bluetooth_connected();
+
 /* Syntactic sugar, to set the new PWM signal
  * (In reality, this means chaning the value of the compare register)	*/
 #define adjust_pwm(pwm_value) {\
@@ -56,5 +48,22 @@ void init_motor_pwm();
 
 /* Debug function */
 void init_adc();
+
+void init_leds();
+
+void listen_to_host();
+
+void steer();
+
+void disconnect();
+
+void connect();
+
+void init_anoroc(anoroc_control *anoroc);
+
+/* Sends all variables to host machine */
+void talk_to_host(anoroc_control *anoroc);
+
+void led_on(uint8_t led, led_color color);
 
 #endif

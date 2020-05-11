@@ -1,6 +1,8 @@
 #include <avr/io.h>
 #include "usart.h"
 
+extern timer0_overflow;
+
 /* Initializes the Usart with the given baud rate */
 void init_usart() {
 
@@ -18,11 +20,28 @@ void init_usart() {
 
 }
 
+void send_byte(uint8_t data) {
+	while (! (UCSR0A & (1 << UDRE0)) );
+	UDR0 = data;
+}
+
+void read_bytes(uint8_t *buf, uint8_t len) {
+	for (uint8_t i = 0; i < len; i++) {
+		buf[len] = read_byte();
+	}
+}
+
 /* Reads a single byte through Usart */
 uint8_t read_byte() {
-		while ( !(UCSR0A & (1 << RXC0)) );
-		return UDR0;
-	}
+	timer0_overflow = 0;
+
+	TCCR0B |= (1 << CS02);
+	while ( !(UCSR0A & (1 << RXC0)) );
+
+	TCNT0 = 0;
+	TCCR0B = 0;
+	return UDR0;
+}
 
 /* Sends an array of bytes, with a given length */
 void send_bytes(uint8_t *bytes, uint8_t len) {

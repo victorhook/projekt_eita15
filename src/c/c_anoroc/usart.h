@@ -15,15 +15,14 @@
 /* Initializes the Usart with the given baud rate */
 void init_usart();
 
-/* Sends a single byte through USART
- * A macro is used to save function overhead */
-#define send_byte(data) {\
-		while (! (UCSR0A & (1 << UDRE0)) ); \
-		UDR0 = data;\
-	}
+/* Sends a single byte through USART */
+void send_byte(uint8_t byte);
 
 /* Reads a single byte through USART */
 uint8_t read_byte();
+
+/* Reads n number of bytes into unsigned 8-bit int buffer */
+void read_bytes(uint8_t *buf, uint8_t len);
 
 /* Sends an array of bytes, with a given length */
 void send_bytes(uint8_t *bytes, uint8_t len);
