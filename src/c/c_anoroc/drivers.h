@@ -9,21 +9,13 @@
 #include "globals.c"
 #include "usart.h"
 
-// We're using pin PA0 (ADC0) as input
-void init_battery_checker();
-
-/* Measures the voltage of the battery and returns
- * it as an uin8t. The Host can then do the conversions
- */
-uint8_t measure_battery();
-
 // Sets the correct IO pins for Ultra-sound sensor
 void init_us_sensor();
 
 /* Measures the distance in front of the sensor robot
  * The value returned is raw timer-data and is transformed
  * to actual distance at host (to save processing power)   */
-void measure_distance();
+void measure_distance(anoroc_control *anoroc);
 
 
 /* Initializes the PWM signal for the H-bdrige drv8833
@@ -51,18 +43,26 @@ void init_adc();
 
 void init_leds();
 
-void listen_to_host();
-
-void steer();
-
-void disconnect();
-
-void connect();
+void init_honk();
 
 void init_anoroc(anoroc_control *anoroc);
 
+
+/* Honks if we need are suppose to! */
+void honk_control(anoroc_control *anoroc);
+
+void steer(anoroc_control *anoroc);
+
+void disconnect(anoroc_control *anoroc);
+
+void connect(anoroc_control *anoroc);
+
 /* Sends all variables to host machine */
 void talk_to_host(anoroc_control *anoroc);
+
+/* Listens to Bluetooth Module, through USART
+ * and updates variables Honk status & Motor thrust  */
+void listen_to_host(anoroc_control *anoroc);
 
 void led_on(uint8_t led, led_color color);
 

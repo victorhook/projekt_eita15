@@ -91,12 +91,6 @@ anoroc_control *anoroc;
  * | Honk & misc |   Honk   |     Unused      |
 */
 
-typedef struct {
-	uint8_t motor_left;
-	uint8_t motor_right;
-	uint8_t honk;
-} rec_packet ;
-
 
 /* Packet structure for RECEIVING
  * <---------- bits ------------->

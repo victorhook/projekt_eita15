@@ -9,7 +9,7 @@ import time
 
 import logging
 
-SCAN_TIMEOUT   = 3
+SCAN_TIMEOUT   = 2
 TARGET_MAC     = '50:65:83:0e:9d:5d'
 USART_HANDLER  = 37
 
@@ -79,7 +79,7 @@ class Controller(bt.DefaultDelegate):
             scan = bt.Scanner()
             scan.scan(SCAN_TIMEOUT)
 
-            for dev in scan.getDevices():      # Check if devices match target
+            for dev in scan.getDevices():      
                 
                 # Check is target MAC is found
                 if dev.addr == TARGET_MAC:
@@ -100,6 +100,7 @@ class Controller(bt.DefaultDelegate):
                         self.connected.call(TARGET_MAC)              
 
                         # Start infinite-communication-loop
+                        self.stop_flag.clear()
                         self.run()
                         
                         # Should not be reached
@@ -125,6 +126,7 @@ class Controller(bt.DefaultDelegate):
             self.device.disconnect()
             self.device = None
             self.usart = None   
+            self.disconnected.call()
    
 
     def __enter__(self):
@@ -140,94 +142,138 @@ class Controller(bt.DefaultDelegate):
 
     def run(self):
 
-        # Make sure that we're still connected
-        if self.device:
+        try:
+            # Make sure that we're still connected
+            if self.device:
 
-            # Enter infinite-loop, running as long as programs wants us to
-            while not self.stop_flag.is_set():
+                # Enter infinite-loop, running as long as programs wants us to
+                while not self.stop_flag.is_set():
 
-                try:
-                    self.device.waitForNotifications(1)
-                    
-                except Exception as e:
-                    self.disconnected.call()
+                    try:
+                        self.device.waitForNotifications(1)
+                        
+                    except Exception as e:
+                        self.disconnected.call()
 
-        else:
-            self.disconnected.call()
+            else:
+                self.disconnected.call()
 
+        finally:
+            # We're done, let's disconnect
+            self.disconnect()
 
     
     # Callback from connected Peripheral
     # c_handle is only needed if multiple devices are used
     def handleNotification(self, c_handle, data):
         try:
-            self.packet_received.call(data)
+            self.packet_received.call(data, self)
         except Exception as e:
             print(e)
 
 
 
+
+
 import tkinter as tk
 
-SAMPLE_LIMIT = 10
+def _connect(controller):
+    threading.Thread(target=controller.connect).start()
 
-class Textbox(tk.Frame):
-
-    def __init__(self, master, controller):
-        super().__init__(master)
-
-        self.ct = controller
-
-        self.glider = tk.Scale(self, command=self.scale_upd, from_=0, to=64, label="SPEED")
-        self.glider.pack()
-
-        self.value = 0
-
-    def ct_callback(self, data):
-        value = struct.pack('B', self.value)
-        #self.ct.send(value)
-        self.ct.send(value)
-        print(data)
-        
-
-    def scale_upd(self, data):
-        self.value = int(data)
+def _disconnect(controller):
+    controller.stop_flag.set()
 
 
+import struct
+RCV_PKT_FORMAT = 'BBBBB'
+SND_PKT_FORMAT = 'BBB'
 
-def pwm(data):
+class Anoroc:
 
-    value = struct.unpack_from('B', data)[0]
-    print(value)
+    def __init__(self):
+                #   T  R  B  L
+        self.move = 0
 
+    def _move(self, dir):
+        self.move = dir
 
-if __name__  == '__main__':
-    
-    root = tk.Tk()
-    root.title('INSANELY FAST BANDVAGN')
-
+if __name__ == "__main__":
     ct = Controller()
 
-    textbox = Textbox(root, ct)
-    textbox.grid(row=0, column=0)
+    ct.stop_flag = threading.Event()
 
-    """
-    entry = tk.Entry(root, width=40)
-    entry.grid(row=0, column=1)
+    root = tk.Tk()
 
-    send = tk.Button(root, width=20, height=10, text='Send')
-    send.bind('<Button-1>', lambda data : ct.send(entry.get().encode()))
-    send.grid(row=1, columnspan=2)
-    """
+    anoroc = Anoroc()
+    root.bind('<Key-w>', lambda _: anoroc._move(0))
+    root.bind('<Key-d>', lambda _: anoroc._move(1))
+    root.bind('<Key-s>', lambda _: anoroc._move(2))
+    root.bind('<Key-a>', lambda _: anoroc._move(3))
 
-    connect = tk.Button(root, text='Connect', 
-                    command=lambda: threading.Thread(target=ct.connect).start())
-    connect.grid(row=2, column=0)
 
-    disconnect = tk.Button(root, text='Disconnect', command=ct.disconnect)
-    disconnect.grid(row=2, column=1)
+    frame = tk.Frame(root)
+    frame.pack()
 
-    ct.packet_received.add_callback(textbox.ct_callback)
+    f = tk.Frame(frame, width=300, height=300)
+    f.pack()
+
+
+    connect = tk.Button(root, text='Connect', command=lambda: _connect(ct))
+    connect.pack()
+    disconnect = tk.Button(root, text='disconnect', command=lambda: ct.stop_flag.set())
+    disconnect.pack()
+
+    send = tk.Button(frame, text='send', command=lambda: ct.send(honk = int(textarea.get())))
+    send.pack()
+
+    thrust1 = tk.IntVar()
+    thrust2 = tk.IntVar()
+
+    scaleframe = tk.Frame(frame)
+    scaleframe.pack()
+
+    scale = tk.Scale(scaleframe, from_=-64, to=64, variable=thrust1)
+    scale.pack(side='left')
     
+    scale = tk.Scale(scaleframe, from_=-64, to=64, variable=thrust2)
+    scale.pack(side='right')
+
+    clear = tk.Button(frame, text='clear', command=lambda: textarea.delete('1.0', 'end'))
+    clear.pack()
+
+
+
+
+    def respond(data, controller):
+
+        global thrust1, thrust2
+
+        """
+        try:
+            data = struct.unpack_from(RCV_PKT_FORMAT, data)
+        except Exception as e:
+            print(e)
+        distance, led_left, led_right, motor_left, motor_right = data
+        print(f'Distance: {distance}    Led left: {led_left}    Led right: {led_right}    Motor left: {motor_left}     Motor right: {motor_right}')
+
+        packet = struct.pack('BBB', 32, 32, 64)
+        controller.send(packet)
+        """
+
+        print(struct.unpack_from('BBBBB', data))
+
+        t1, t2 = int(thrust1.get()), int(thrust2.get())
+
+        if t1 < 0:
+            t1 = abs(t1) | (1 << 7)
+
+        if t2 < 0:
+            t2 = abs(t2) | (1 << 7)
+
+        controller.send(struct.pack('BBB', t1, t2, 0))
+
+
+    ct.packet_received.add_callback(respond)
+
     root.mainloop()
 

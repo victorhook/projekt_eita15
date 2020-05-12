@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "usart.h"
 
 extern timer0_overflow;
@@ -21,25 +22,26 @@ void init_usart() {
 }
 
 void send_byte(uint8_t data) {
+	// Waits MAX ~15 ms before leaving
+	// For some reason we need to re-enable the Global Interrupt pin between
+	// checks for overflow
 	while (! (UCSR0A & (1 << UDRE0)) );
 	UDR0 = data;
 }
 
-void read_bytes(uint8_t *buf, uint8_t len) {
-	for (uint8_t i = 0; i < len; i++) {
-		buf[len] = read_byte();
-	}
-}
 
 /* Reads a single byte through Usart */
 uint8_t read_byte() {
 	timer0_overflow = 0;
+	sei();
 
-	TCCR0B |= (1 << CS02);
-	while ( !(UCSR0A & (1 << RXC0)) );
+	// Waits MAX ~15 ms before leaving (To ensure not getting stuck!)
+	// For some reason we need to re-enable the Global Interrupt pin between
+	// checks for overflow
+	while (timer0_overflow < 5 && ! ( UCSR0A & (1 << RXC0)) ) {
+		sei();
+	}
 
-	TCNT0 = 0;
-	TCCR0B = 0;
 	return UDR0;
 }
 
@@ -47,6 +49,13 @@ uint8_t read_byte() {
 void send_bytes(uint8_t *bytes, uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
 		send_byte(*bytes++);
+	}
+}
+
+/* Reads n bytes */
+void read_bytes(uint8_t *buf, uint8_t len) {
+	for (uint8_t i = 0; i < len; i++) {
+		*(buf + i) = read_byte();
 	}
 }
 

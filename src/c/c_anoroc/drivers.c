@@ -19,9 +19,6 @@ ISR(PCINT2_vect) {
 
 // Increments an overflow counter for TIMER 0 (US sensor)
 ISR(TIMER0_OVF_vect) {
-	if (timer0_overflow == 150) {
-		UCSR0A |= (1 << RXC0) | (1 << UDRE0);
-	}
 	timer0_overflow++;
 }
 
@@ -33,9 +30,6 @@ void init_us_sensor() {
 	US_SENSOR_DDR |= (1 << US_SENSOR_TRIG);
 	// Set ECHO pin as IN (should be default already)
 	US_SENSOR_DDR &= ~(1 << US_SENSOR_ECHO);
-
-	// Enable Overflow Interrupt
-	TIMSK0 |= 1 << TOIE0;
 }
 
 void init_motor_pwm() {
@@ -72,6 +66,9 @@ void init_motor_pwm() {
 	MOTOR_RIGHT_DDR |= (1 << MOTOR_RIGHT_PORT1) | (1 << MOTOR_RIGHT_PORT2);
 }
 
+void init_honk() {
+	HONK_DDR |= 1 << HONK;
+}
 
 
 
@@ -80,10 +77,7 @@ uint8_t bluetooth_connected() {
 }
 
 
-void measure_distance() {
-
-	// Reset overflow counter
-	timer0_overflow = 0;
+void measure_distance(anoroc_control *anoroc) {
 
 	// Send 10 us pulse to start measurement!
 	US_SENSOR_PORT |= (1 << US_SENSOR_TRIG);
@@ -93,30 +87,29 @@ void measure_distance() {
 	// Let's wait untill the sensor has sent 8 pulses
 	while ( ! (US_SENSOR_PIN & (1 << US_SENSOR_ECHO)) );
 
+	TCNT0 = 0;
+	timer0_overflow = 0;
+
 	// Pulses are sent from sensor, measurement started, let's start the timer!
-	// Prescaler: 1024 --> 256kHz => 78.125kHz
-	// Period: 12,8 us
-	TCCR0B |= (1 << CS02);
-	while ( timer0_overflow < 5 && (US_SENSOR_PIN & (1 << US_SENSOR_ECHO)) );
+	while (timer0_overflow < 4 && (US_SENSOR_PIN & (1 << US_SENSOR_ECHO)) ) {
+		sei();
+	}
 
 	// Each timer-overflow takes 3.28 ms, and measures ~ 56.5 cm
-	// Stopping at MAX 5 overflows gives us a total range of ~ 2.25m
-	// which fits an 8-bit unsigned int in cm
+	// Stopping at MAX 4 overflows gives us a total range of ~ 2m
+	// which fits an 8-bit unsigned int in cm + MAX waiting time ~ 12 ms
 
 	/* Distance is calulated as:
 	 * timer * 12.8 / 58 = X cm
-	 * which is roughly ~ timer * 16 / 64 = X cm
-	 * which is roughly ~ timer / 4 = timer >> 2
+	 * => ~ timer * 16 / 64 = X cm
+	 * => ~ timer / 4 = timer >> 2
 	 */
 
 	// Each timer value is approx ~ 1/4 cm
 	uint8_t timer = TCNT0 >> 2;
-	// Each overflow is approx ~ 64 cm
-	timer += (timer0_overflow << 4);
-
-	// Reset counter and stop the timer, so we're ready for next measurement!
-	TCNT0 = 0;
-	TCCR0B = 0;
+	// Shifting bits here gives too much error
+	// (could be done on host, but we want pure distance from anoroc)
+	timer += timer0_overflow * 55;
 
 	anoroc->distance = timer;
 }
@@ -201,21 +194,29 @@ void init_anoroc(anoroc_control *anoroc) {
 
 /* Sends all variables to host machine */
 void talk_to_host(anoroc_control *anoroc) {
-	send_byte((uint8_t) anoroc->distance);
-	send_byte((uint8_t) anoroc->led_left);
-	send_byte((uint8_t) anoroc->led_right);
-	send_byte((uint8_t) anoroc->motor_left);
-	send_byte((uint8_t) anoroc->motor_right);
+	send_byte(anoroc->distance);
+	send_byte(anoroc->led_left);
+	send_byte(anoroc->led_right);
+	send_byte(anoroc->motor_left);
+	send_byte(anoroc->motor_right);
+}
+
+/* Listens to Bluetooth Module, through USART
+ * and updates variables Honk status & Motor thrust  */
+void listen_to_host(anoroc_control *anoroc) {
+	anoroc->motor_left = read_byte();
+	anoroc->motor_right = read_byte();
+	anoroc->honk = read_byte();
 }
 
 /* Adjusts the leds according to anorocs variables */
-void led_control() {
+void led_control(anoroc_control *anoroc) {
 	led_on(LED_LEFT, anoroc->led_left);
 	led_on(LED_RIGHT, anoroc->led_right);
 }
 
 /* Honks if we need are suppose to! */
-void honk_control() {
+void honk_control(anoroc_control *anoroc) {
 	if (anoroc->honk) {
 		HONK_PORT |= 1 << HONK;
 	} else {
@@ -223,29 +224,55 @@ void honk_control() {
 	}
 }
 
-/* Listens to Bluetooth Module, through USART
- * and updates variables Honk status & Motor thrust  */
-void listen_to_host() {
 
-	rec_packet * packet;
-	read_bytes((uint8_t *) packet, sizeof(packet));
-	anoroc->honk = packet->honk;
-	anoroc->motor_left = packet->motor_left;
-	anoroc->motor_right = packet->motor_right;
+
+void steer(anoroc_control *anoroc) {
+
+	  // REVERSE
+	if (anoroc->motor_right & (1 << 7)) {
+		OCR1A = 0;
+		OCR1B = anoroc->motor_right & 0x40;
+	} // FORWARD
+	else {
+		OCR1A = anoroc->motor_right;
+		OCR1B = 0;
+	}
+
+	  // REVERSE
+	if (anoroc->motor_left & (1 << 7)) {
+		OCR3A = anoroc->motor_left & 0x40;
+		OCR3B = 0;
+	} // FORWARD
+	else {
+		OCR3A = 0;
+		OCR3B = anoroc->motor_left;
+	}
+
+
+
+
 }
 
-void steer();
-
-void disconnect() {
+void disconnect(anoroc_control *anoroc) {
 	anoroc->connection = disconnected;
 	anoroc->led_left = RED;
 	anoroc->led_right = RED;
+	anoroc->honk = 0;
 }
 
-void connect() {
+void connect(anoroc_control *anoroc) {
 	anoroc->connection = connected;
 	anoroc->led_left = BLUE;
 	anoroc->led_right = BLUE;
+}
+
+void init_timer0() {
+	// Enable timer overflow
+	TIMSK0 |= 1 << TOIE0;
+	// Start timer, prescaler: 256
+	// Clockperiod:      12.5 us
+	// Overflowperiod: ~ 3.2ms
+	TCCR0B |= (1 << CS02);
 }
 
 void init_leds() {
