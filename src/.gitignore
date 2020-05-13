@@ -1,0 +1,7 @@
+.vscode/
+c_/
+python/__pycache__/
+python/.vscode/
+python/images/
+python/etc/
+

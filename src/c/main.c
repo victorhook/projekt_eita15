@@ -1,6 +1,5 @@
 #include "drivers.h"
 
-
 int main() {
 
 	init_usart();
@@ -23,15 +22,11 @@ int main() {
 					talk_to_host(&anoroc);
 					honk_control(&anoroc);
 					measure_distance(&anoroc);
-
 					steer(&anoroc);
-
 					listen_to_host(&anoroc);
-					_delay_ms(200);
 				}
 
 				disconnect(&anoroc);
-
 				break;
 
 			case disconnected:

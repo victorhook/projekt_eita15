@@ -2,8 +2,6 @@
 #include <avr/interrupt.h>
 #include "usart.h"
 
-extern timer0_overflow;
-
 /* Initializes the Usart with the given baud rate */
 void init_usart() {
 
@@ -16,32 +14,24 @@ void init_usart() {
 	// Data format: | 1 START | 8 DATA | 1 STOP |
 	UCSR0C |= (1 << UCSZ00) | (1 << UCSZ01);
 
-	// Flush pipe from old data and we're done!
+	// Flush pipe from old data and we're ready!
 	flush();
 
 }
 
+/* Sends a byte of data through Usart */
 void send_byte(uint8_t data) {
-	// Waits MAX ~15 ms before leaving
-	// For some reason we need to re-enable the Global Interrupt pin between
-	// checks for overflow
 	while (! (UCSR0A & (1 << UDRE0)) );
 	UDR0 = data;
 }
 
 
-/* Reads a single byte through Usart */
+/* Reads a single byte through Usart
+ * *** NOTE, this function BLOCKS if no recieving data is coming!!! ***
+ * */
 uint8_t read_byte() {
-	timer0_overflow = 0;
-	sei();
 
-	// Waits MAX ~15 ms before leaving (To ensure not getting stuck!)
-	// For some reason we need to re-enable the Global Interrupt pin between
-	// checks for overflow
-	while (timer0_overflow < 5 && ! ( UCSR0A & (1 << RXC0)) ) {
-		sei();
-	}
-
+	while (! ( UCSR0A & (1 << RXC0)));
 	return UDR0;
 }
 

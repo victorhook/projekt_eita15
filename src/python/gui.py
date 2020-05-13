@@ -1,4 +1,6 @@
 from pi_anoroc import PiAnoroc
+from hotspot import Hotspot
+from anoroc import Anoroc
 
 from datetime import datetime
 import json
@@ -17,6 +19,7 @@ CONFIG_DIR  = 'etc'
 CONFIG_FILE = 'anoroc.conf'
 
 GREEN = '#40f900'
+LED_COLORS = {0: 'red', 1: 'green', 2: 'blue'}
 
 STYLE_FRAME = {
     'relief': 'groove',
@@ -54,16 +57,13 @@ class Gui(tk.Tk):
         self.set_configs()                    # Retrieves variables from config file
         self.build_root_window()              # Sets all build variables for the main window
         self.load_images()
-
         # Initializes the logger
         self._init_logger()
-
         self.pi_flag = threading.Event()    # Stop flag for synchronizing with pi_anoroc
         self.log_flag  = threading.Event()    # Stop flag for synchronizing with logging monitor
-
-        self.pi_anoroc = PiAnoroc(self, self._hostspot_name, self._host_addr,
-                                self._host_port, self.pi_flag, self.log)          
         
+
+
 
         ## -- Main container for all frames -- ##
         self.frame_main = tk.Frame(self, **STYLE_FRAME)
@@ -90,9 +90,33 @@ class Gui(tk.Tk):
         self.log_frame = self.LogFrame(self.frame_main, self, self.log_flag, **STYLE_FRAME, height=200)
         self.log_frame.pack(fill='x')
 
+        self.anoroc = Anoroc(self.log)
+        self.anoroc.connected.add_callback(lambda *_: self.status_var.set('Connected'))
+        self.anoroc.disconnected.add_callback(lambda *_: self.status_var.set('Disconnected'))
+        self.anoroc.packet_received.add_callback(self.update_vars)
+
+        # This objects handles all communication with the Raspberry Pi on Anoroc
+        self.pi_anoroc = PiAnoroc(self, self._hostspot_name, self._host_addr,
+                                self._host_port, self.pi_flag, self.log)   
 
 
 
+    def update_vars(self, data):
+        distance, led_left, led_right, motor_left, motor_right = data
+
+        # Need an average distance (otherwise it updates too fast)
+        self.anoroc.distance += distance
+        if self.anoroc.distance_counter == 10:
+            self.distance_var.set('%s cm' % int(self.anoroc.distance / 10))
+            self.anoroc.distance = 0
+            self.anoroc.distance_counter = 0
+        else:
+            self.anoroc.distance_counter += 1
+
+        self.led_left = LED_COLORS[led_left]
+        self.led_right = LED_COLORS[led_right]
+        self.motor_left.update(motor_left)
+        self.motor_right.update(motor_right)
 
     # Loads all static images and stores them as objects, ready to use for tkinter
     def load_images(self):
@@ -108,10 +132,6 @@ class Gui(tk.Tk):
         paths = [os.path.join(ctrl_dir, img_name) for img_name in names]
         # Forms a dictionary with "Image name": PhotoImage object
         self.ctrl_imgs = {name.replace('.png', '') : ImageTk.PhotoImage(Image.open(path)) for name, path in zip(names, paths)}
-
-        self.honk_img = ImageTk.PhotoImage(Image.open(os.path.join(img_dir, 'honk.png')))
-        self.honk_img_active = ImageTk.PhotoImage(Image.open(os.path.join(img_dir, 'honk_active.png')))
-        self.speedometer_img = ImageTk.PhotoImage(Image.open(os.path.join(img_dir, 'speedometer.png')))
         self.logo = ImageTk.PhotoImage(Image.open(os.path.join(img_dir, 'anoroc.png')))
 
 
@@ -145,11 +165,17 @@ class Gui(tk.Tk):
             config = json.load(conf)
         
         # Key-bindings for vehicle control
-        self.bind('<KeyPress-%s>' % config['forward'], lambda _ : self._mv_forward(True))
-        self.bind('<KeyPress-%s>' % config['back'], lambda _ : self._mv_back(True))
-        self.bind('<KeyPress-%s>' % config['right'], lambda _ : self._mv_right(True))
-        self.bind('<KeyPress-%s>' % config['left'], lambda _ : self._mv_left(True))
-        self.bind('<KeyPress-%s>' % config['honk'], lambda _ : self._mv_honk(True))
+        self.bind('<KeyPress-%s>' % config['forward'], lambda _e: self.anoroc.move('FORWARD', 'UP'))
+        self.bind('<KeyPress-%s>' % config['back'], lambda _e: self.anoroc.move('BACK', 'UP'))
+        self.bind('<KeyPress-%s>' % config['right'], lambda _e: self.anoroc.move('RIGHT', 'UP'))
+        self.bind('<KeyPress-%s>' % config['left'], lambda _e: self.anoroc.move('LEFT', 'UP'))
+        self.bind('<KeyPress-%s>' % config['honk'], lambda _e: self.anoroc.do_honk('UP'))
+
+        self.bind('<KeyRelease-%s>' % config['forward'], lambda _e: self.anoroc.move('FORWARD', 'DOWN'))
+        self.bind('<KeyRelease-%s>' % config['back'], lambda _e: self.anoroc.move('BACK', 'DOWN'))
+        self.bind('<KeyRelease-%s>' % config['right'], lambda _e: self.anoroc.move('RIGHT', 'DOWN'))
+        self.bind('<KeyRelease-%s>' % config['left'], lambda _e: self.anoroc.move('LEFT', 'DOWN'))
+        self.bind('<KeyRelease-%s>' % config['honk'], lambda _e: self.anoroc.do_honk('DOWN'))
 
         # Misc GUI settings
         self._title = config['title']
@@ -180,16 +206,16 @@ class Gui(tk.Tk):
 
     # Connects to anoroc
     def _connect(self):
-        # Ensure flag is cleared before we start PiAnoroc thread
-        self.pi_flag.clear()
+        threading.Thread(target=self.anoroc.connect).start()
         threading.Thread(target=self.pi_anoroc.open).start()
     
-
     # Disconnects to anoroc
     def _disconnect(self):
-        # Set the stop flag for PiAnoroc
+        # Set the stop flag for PiAnoroc and close sockets
         self.pi_flag.set()
         self.pi_anoroc.close()
+        # Tell Bluetooth anoroc to stop running
+        self.anoroc.stop_flag.set()
 
     # Wrapper for calling update on the VideoFrame object
     def img_update(self, img):
@@ -228,25 +254,23 @@ class Gui(tk.Tk):
             self.label_status = tk.Label(self, text='Status: ', **STYLE_LABEL)
             self.label_status.grid(row=0, column=0, sticky='w')
 
-            self.status_var = tk.StringVar()
-            self.status_var.set('Disconnected')
+            root.status_var = tk.StringVar()
+            root.status_var.set('Disconnected')
 
-            self.label_status_var = tk.Label(self, textvariable=self.status_var, **STYLE_LABEL)
+            self.label_status_var = tk.Label(self, textvariable=root.status_var, **STYLE_LABEL)
             self.label_status_var.grid(row=0, column=1, sticky='w', pady=10)
 
+            ## -- DISTANCE -- ##
+            self.label_distance = tk.Label(self, text='Distance: ', **STYLE_LABEL)
+            self.label_distance.grid(row=1, column=0, sticky='w')
 
-            ## -- BATTERY -- ##
+            root.distance_var = tk.StringVar()
+            root.distance_var.set('0 cm')
 
-            self.label_battery = tk.Label(self, text='Battery: ', **STYLE_LABEL)
-            self.label_battery.grid(row=1, column=0, sticky='w', pady=10)
+            self.label_distance_var = tk.Label(self, textvariable=root.distance_var, **STYLE_LABEL)
+            self.label_distance_var.grid(row=1, column=1, sticky='w', pady=10)
 
-            self.battery_var = tk.StringVar()
-            self.battery_var.set('3.7 V')
-
-            self.label_battery_var = tk.Label(self, textvariable=self.battery_var, **STYLE_LABEL)
-            self.label_battery_var.grid(row=1, column=1, sticky='w', pady=10)
-
-            ## -- BATTERY -- ##
+            ## -- FPS -- ##
 
             self.fps_status = tk.Label(self, text='FPS: ', **STYLE_LABEL)
             self.fps_status.grid(row=2, column=0, sticky='w', pady=10)
@@ -256,25 +280,42 @@ class Gui(tk.Tk):
             self.fps_status_var = tk.Label(self, textvariable=self.fps_var, **STYLE_LABEL)
             self.fps_status_var.grid(row=2, column=1, sticky='w', pady=10)
 
+            ## -- LEDS -- ##
+            self.label_led_left = tk.Label(self, text='LEDS', **STYLE_LABEL)
+            self.label_led_left.grid(row=3, column=0, sticky='w', pady=10)
 
+            self.led_box = tk.Frame(self, background='black')
+            self.led_box.grid(row=3, column=1, sticky='w')
+
+            root.led_left  = 'red'
+            root.led_right = 'red'
+
+            self.canvas_led_left = tk.Canvas(self.led_box, background='blue', width=20, height=20)
+            self.canvas_led_left.pack(side='left', padx=(0, 20))
+
+            self.canvas_led_right = tk.Canvas(self.led_box, background='blue', width=20, height=20)
+            self.canvas_led_right.pack(side='right', padx=20)
+
+            
             ## -- MOTOR -- ##
             self.motor_status = tk.Label(self, text='Motors', **STYLE_LABEL)
-            self.motor_status.grid(row=3, columnspan=2)
+            self.motor_status.grid(row=5, columnspan=2)
             self.motor_status.config(font = 'Times 20 bold')
 
-            self.motor_canvas = tk.Canvas(self, bd=0, bg='black', width=350)
-            self.motor_canvas.grid(row=4, columnspan=2, sticky='w', pady=10, padx=20)
+            self.motor_canvas = tk.Canvas(self, bd=0, bg='black', width=350, height=200)
+            self.motor_canvas.grid(row=6, columnspan=2, sticky='w', pady=10, padx=20)
 
-            self.left_motor = self.Motor(self, self.motor_canvas, 50, 100, row=5, col=0, motor='Left')
-            self.right_motor = self.Motor(self, self.motor_canvas, 200, 100, row=5, col=1, motor='Right')
+            root.motor_left = self.Motor(self, self.motor_canvas, 50, 100, row=5, col=0, motor='Left')
+            root.motor_right = self.Motor(self, self.motor_canvas, 200, 100, row=5, col=1, motor='Right')
+
 
             ## -- BUTTONS -- ##
 
             self.btn_connect = tk.Button(self, text='Connect', command=root._connect, **STYLE_BUTTONS)
-            self.btn_connect.grid(row=5, column=0, pady=15)
+            self.btn_connect.grid(row=7, column=0, pady=15)
 
             self.btn_disconnect = tk.Button(self, text='Disconnect', command=root._disconnect, **STYLE_BUTTONS)
-            self.btn_disconnect.grid(row=5, column=1, pady=15)
+            self.btn_disconnect.grid(row=7, column=1, pady=15)
 
             # We don't want child widgets to resize the frame
             self.grid_propagate(0)
@@ -289,7 +330,7 @@ class Gui(tk.Tk):
                 self.canvas = canvas
                 self.frame = frame
 
-                self.width, self.height = 100, 170
+                self.width, self.height = 100, 100
                 self.y, self.x = y + self.height, x
                 self.fill = 0
                 
@@ -302,7 +343,7 @@ class Gui(tk.Tk):
                 self.canvas.create_text(self.x + (self.width / 2), self.y - (self.height / 6),
                                                         font='Times 18 bold', text=motor, fill='white')
 
-                self.update(50)
+                self.update(20)
 
 
             def update(self, thrust):
@@ -411,9 +452,15 @@ if __name__ == "__main__":
 
     # Turns off autorepeat behaviour of os (enables detecting keyRelease and keyPress)
     os.system('xset r off')
+    # Turn on hotspot
+    Hotspot.open_hotspot()
 
+    # Open the GUI and let it run until closed
     gui = Gui()
     gui.mainloop()
 
-    # Turn aurorepeat back on
+    # Close hotspot before exiting
+    Hotspot.close_hotspot()
+
+    # Turn aurorepeat back on before exiting
     os.system('xset r on')

@@ -40,12 +40,10 @@
 #define MOTOR_RIGHT_PORT1 PB6
 #define MOTOR_RIGHT_PORT2 PB7
 
-#define START_MESSAGE 0xff
-#define END_MESSAGE 0xfe
-
 
 /* --- Global variables --- */
 uint8_t timer0_overflow;
+uint8_t us_sensor_ready;
 
 
 /* --- ENUMS & TYPES --- */
@@ -56,19 +54,12 @@ typedef enum {
 } connection_state;
 
 typedef enum {
-	RED,
-	GREEN,
-	BLUE,
+	RED = 0,
+	GREEN = 1,
+	BLUE = 2,
 } led_color ;
 
-typedef enum {
-	FORWARD,
-	BACKWARDS,
-	RIGHT,
-	LEFT
-} direction ;
-
-
+/* Struct that "represents" Anoroc */
 typedef struct {
 	uint8_t motor_left;
 	uint8_t motor_right;
@@ -89,16 +80,4 @@ anoroc_control *anoroc;
  * | Right motor | Reverse  | Thrust | Unused |
  * | >> BITS >>> |    16    |      17-23      |
  * | Honk & misc |   Honk   |     Unused      |
-*/
-
-
-/* Packet structure for RECEIVING
- * <---------- bits ------------->
- * |		     |    0     |   1-7  |
- * | Left motor  | Reverse  | Thrust |
- * |        8-15 |
- * | Battery Voltage | 
- * |        15-23 |
- * | Distance to front |
- * | 			 |   Honk   | Unused |   
 */

@@ -18,7 +18,10 @@ void init_usart();
 /* Sends a single byte through USART */
 void send_byte(uint8_t byte);
 
-/* Reads a single byte through USART */
+/* Reads a single byte through USART
+ * -- NOTE --
+ * This function BLOCKS program.
+ * This can be handled with timers / by host machine */
 uint8_t read_byte();
 
 /* Reads n number of bytes into unsigned 8-bit int buffer */

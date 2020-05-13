@@ -1,6 +1,4 @@
-
 from callback import Callback
-
 
 import bluepy.btle as bt
 import struct
@@ -12,6 +10,9 @@ import logging
 SCAN_TIMEOUT   = 2
 TARGET_MAC     = '50:65:83:0e:9d:5d'
 USART_HANDLER  = 37
+RCV_PKT_FORMAT = 'BBBBB'
+SND_PKT_FORMAT = 'BBB'
+PACKET_TIMEOUT = 2
 
 """
     The HM-10 BLE can be programmed with AT-commands
@@ -23,17 +24,18 @@ USART_HANDLER  = 37
     AT+BAUD8 = 115200
 """
 
-
 class Controller(bt.DefaultDelegate):
 
     """
 
     """
 
-    def __init__(self):
+    def __init__(self, log):
 
-        self.device = None
-        self.stream = None
+        self.device    = None
+        self.stream    = None
+        self.log       = log
+        self.timer     = 0
         self.stop_flag = threading.Event()
 
 
@@ -56,16 +58,20 @@ class Controller(bt.DefaultDelegate):
         # Called when a packet is received from the device
         self.packet_received = Callback()
         
+        # Called to send a packet
+        self.send_packet = Callback()
+
+        # Called when timeout
+        self.timeout = Callback()
 
         self.add_default_callbacks()
 
 
     def add_default_callbacks(self):
-        self.connected.add_callback(lambda MAC: print('Connected to %s' % MAC))
-        #self.disconnected.add_callback(lambda: print('Disconnected'))
-        self.connection_failed.add_callback(lambda: print('Connection failed'))
-        self.device_not_found.add_callback(lambda: print('Device not found'))
-        self.already_connected.add_callback(lambda: print('Already connected to %s' % self.device))
+        self.connected.add_callback(lambda MAC: self.log.info('Connected to Bluetooth MAC %s' % MAC))
+        self.connection_failed.add_callback(lambda: self.log.info('Connection failed'))
+        self.device_not_found.add_callback(lambda: self.log.info('Device not found'))
+        self.already_connected.add_callback(lambda: self.log.info('Already connected to %s' % self.device))
 
 
     """ Scans nearby devices and connects to the target if not 
@@ -151,6 +157,9 @@ class Controller(bt.DefaultDelegate):
 
                     try:
                         self.device.waitForNotifications(1)
+                        if time.time() - self.timer >= PACKET_TIMEOUT:
+                            self.timeout.call()
+                            self.timer = time.time()
                         
                     except Exception as e:
                         self.disconnected.call()
@@ -167,113 +176,11 @@ class Controller(bt.DefaultDelegate):
     # c_handle is only needed if multiple devices are used
     def handleNotification(self, c_handle, data):
         try:
-            self.packet_received.call(data, self)
-        except Exception as e:
-            print(e)
-
-
-
-
-
-import tkinter as tk
-
-def _connect(controller):
-    threading.Thread(target=controller.connect).start()
-
-def _disconnect(controller):
-    controller.stop_flag.set()
-
-
-import struct
-RCV_PKT_FORMAT = 'BBBBB'
-SND_PKT_FORMAT = 'BBB'
-
-class Anoroc:
-
-    def __init__(self):
-                #   T  R  B  L
-        self.move = 0
-
-    def _move(self, dir):
-        self.move = dir
-
-if __name__ == "__main__":
-    ct = Controller()
-
-    ct.stop_flag = threading.Event()
-
-    root = tk.Tk()
-
-    anoroc = Anoroc()
-    root.bind('<Key-w>', lambda _: anoroc._move(0))
-    root.bind('<Key-d>', lambda _: anoroc._move(1))
-    root.bind('<Key-s>', lambda _: anoroc._move(2))
-    root.bind('<Key-a>', lambda _: anoroc._move(3))
-
-
-    frame = tk.Frame(root)
-    frame.pack()
-
-    f = tk.Frame(frame, width=300, height=300)
-    f.pack()
-
-
-    connect = tk.Button(root, text='Connect', command=lambda: _connect(ct))
-    connect.pack()
-    disconnect = tk.Button(root, text='disconnect', command=lambda: ct.stop_flag.set())
-    disconnect.pack()
-
-    send = tk.Button(frame, text='send', command=lambda: ct.send(honk = int(textarea.get())))
-    send.pack()
-
-    thrust1 = tk.IntVar()
-    thrust2 = tk.IntVar()
-
-    scaleframe = tk.Frame(frame)
-    scaleframe.pack()
-
-    scale = tk.Scale(scaleframe, from_=-64, to=64, variable=thrust1)
-    scale.pack(side='left')
-    
-    scale = tk.Scale(scaleframe, from_=-64, to=64, variable=thrust2)
-    scale.pack(side='right')
-
-    clear = tk.Button(frame, text='clear', command=lambda: textarea.delete('1.0', 'end'))
-    clear.pack()
-
-
-
-
-    def respond(data, controller):
-
-        global thrust1, thrust2
-
-        """
-        try:
             data = struct.unpack_from(RCV_PKT_FORMAT, data)
+            self.packet_received.call(data)
+            self.send_packet.call()
         except Exception as e:
-            print(e)
-        distance, led_left, led_right, motor_left, motor_right = data
-        print(f'Distance: {distance}    Led left: {led_left}    Led right: {led_right}    Motor left: {motor_left}     Motor right: {motor_right}')
-
-        packet = struct.pack('BBB', 32, 32, 64)
-        controller.send(packet)
-        """
-
-        print(struct.unpack_from('BBBBB', data))
-
-        t1, t2 = int(thrust1.get()), int(thrust2.get())
-
-        if t1 < 0:
-            t1 = abs(t1) | (1 << 7)
-
-        if t2 < 0:
-            t2 = abs(t2) | (1 << 7)
-
-        controller.send(struct.pack('BBB', t1, t2, 0))
-
-
-    ct.packet_received.add_callback(respond)
-
-    root.mainloop()
-
+            self.log.info('Exception as BT: %s' % e)
+        
+        finally:
+            self.timer = time.time()
