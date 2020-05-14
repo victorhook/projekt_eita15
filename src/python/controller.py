@@ -176,9 +176,10 @@ class Controller(bt.DefaultDelegate):
     # c_handle is only needed if multiple devices are used
     def handleNotification(self, c_handle, data):
         try:
-            data = struct.unpack_from(RCV_PKT_FORMAT, data)
-            self.packet_received.call(data)
-            self.send_packet.call()
+            if data:
+                data = struct.unpack_from(RCV_PKT_FORMAT, data)
+                self.packet_received.call(data)
+                self.send_packet.call()
         except Exception as e:
             self.log.info('Exception as BT: %s' % e)
         

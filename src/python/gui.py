@@ -1,6 +1,7 @@
 from pi_anoroc import PiAnoroc
 from hotspot import Hotspot
 from anoroc import Anoroc
+from handcontrol import HandControl
 
 from datetime import datetime
 import json
@@ -57,12 +58,23 @@ class Gui(tk.Tk):
         self.set_configs()                    # Retrieves variables from config file
         self.build_root_window()              # Sets all build variables for the main window
         self.load_images()
+
         # Initializes the logger
         self._init_logger()
         self.pi_flag = threading.Event()    # Stop flag for synchronizing with pi_anoroc
         self.log_flag  = threading.Event()    # Stop flag for synchronizing with logging monitor
         
 
+        # This objects handles all communication with the Raspberry Pi on Anoroc
+        self.pi_anoroc = PiAnoroc(self, self._hostspot_name, self._host_addr,
+                                self._host_port, self.pi_flag, self.log)   
+
+        self.anoroc = Anoroc(self.log)
+        self.anoroc.connected.add_callback(lambda *_: self.status_var.set('Connected'))
+        self.anoroc.disconnected.add_callback(lambda *_: self.status_var.set('Disconnected'))
+        self.anoroc.packet_received.add_callback(self.update_vars)
+
+        self.handcontrol = HandControl(self._host_addr, self._handctrl_port, self.log, self.anoroc)
 
 
         ## -- Main container for all frames -- ##
@@ -90,14 +102,6 @@ class Gui(tk.Tk):
         self.log_frame = self.LogFrame(self.frame_main, self, self.log_flag, **STYLE_FRAME, height=200)
         self.log_frame.pack(fill='x')
 
-        self.anoroc = Anoroc(self.log)
-        self.anoroc.connected.add_callback(lambda *_: self.status_var.set('Connected'))
-        self.anoroc.disconnected.add_callback(lambda *_: self.status_var.set('Disconnected'))
-        self.anoroc.packet_received.add_callback(self.update_vars)
-
-        # This objects handles all communication with the Raspberry Pi on Anoroc
-        self.pi_anoroc = PiAnoroc(self, self._hostspot_name, self._host_addr,
-                                self._host_port, self.pi_flag, self.log)   
 
 
 
@@ -193,6 +197,7 @@ class Gui(tk.Tk):
         self._hostspot_name = config['hotspot_name']
         self._host_addr = config['host_addr']
         self._host_port = int(config['host_port'])
+        self._handctrl_port = int(config['hand_ctrl_port'])
 
         # Override default close operation
         self.protocol('WM_DELETE_WINDOW', self._exit)
@@ -202,10 +207,12 @@ class Gui(tk.Tk):
     def _exit(self):
         self.log_flag.set()
         self.pi_flag.set()
+        self.handcontrol.stop_flag.set()
         self.destroy()
 
     # Connects to anoroc
     def _connect(self):
+        self.handcontrol.start()
         threading.Thread(target=self.anoroc.connect).start()
         threading.Thread(target=self.pi_anoroc.open).start()
     
@@ -216,6 +223,8 @@ class Gui(tk.Tk):
         self.pi_anoroc.close()
         # Tell Bluetooth anoroc to stop running
         self.anoroc.stop_flag.set()
+        # Disconnect handcontrol
+        self.handcontrol.exit()
 
     # Wrapper for calling update on the VideoFrame object
     def img_update(self, img):
