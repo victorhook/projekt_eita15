@@ -121,6 +121,7 @@ class PiAnoroc:
             # Rewind the stream to start
             img_stream.seek(0)
             img = Image.open(img_stream)
+            img = img.rotate(180)
 
             fps += 1
 

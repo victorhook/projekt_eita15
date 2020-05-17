@@ -119,8 +119,8 @@ class Gui(tk.Tk):
 
         self.led_left = LED_COLORS[led_left]
         self.led_right = LED_COLORS[led_right]
-        self.motor_left.update(motor_left)
-        self.motor_right.update(motor_right)
+        self.motor_left.update( ((motor_left & 0x40) / 64) * 100)
+        self.motor_right.update( ((motor_right & 0x40) / 64) * 100)
 
     # Loads all static images and stores them as objects, ready to use for tkinter
     def load_images(self):
@@ -212,7 +212,7 @@ class Gui(tk.Tk):
 
     # Connects to anoroc
     def _connect(self):
-        self.handcontrol.start()
+        #self.handcontrol.start()
         threading.Thread(target=self.anoroc.connect).start()
         threading.Thread(target=self.pi_anoroc.open).start()
     
@@ -224,7 +224,7 @@ class Gui(tk.Tk):
         # Tell Bluetooth anoroc to stop running
         self.anoroc.stop_flag.set()
         # Disconnect handcontrol
-        self.handcontrol.exit()
+        #self.handcontrol.exit()
 
     # Wrapper for calling update on the VideoFrame object
     def img_update(self, img):
@@ -352,9 +352,6 @@ class Gui(tk.Tk):
                 self.canvas.create_text(self.x + (self.width / 2), self.y - (self.height / 6),
                                                         font='Times 18 bold', text=motor, fill='white')
 
-                self.update(20)
-
-
             def update(self, thrust):
 
                 # Update the Thrust label
@@ -455,6 +452,7 @@ class Gui(tk.Tk):
                     line = log.readline()
                     if line:
                         self.text.insert('end', line)
+                        self.text.see('end')
 
 
 if __name__ == "__main__":
@@ -469,7 +467,7 @@ if __name__ == "__main__":
     gui.mainloop()
 
     # Close hotspot before exiting
-    Hotspot.close_hotspot()
+    #Hotspot.close_hotspot()
 
     # Turn aurorepeat back on before exiting
     os.system('xset r on')
