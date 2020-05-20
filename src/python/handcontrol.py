@@ -64,13 +64,7 @@ class HandControl(threading.Thread):
                             direction[3] = True
                         else:
                             direction[3] = False                            
-                        
 
-
-                        #motor_thrust_left, motor_thrust_right = self.calc_motor_thrust(x, y)
-                        #self.anoroc.motor_left = motor_thrust_left
-                        #self.anoroc.motor_right = motor_thrust_right
-                        #print(self.anoroc.motor_left, self.anoroc.motor_right)
                         self.anoroc.direction = direction
                     else:
                         print(x, y)
@@ -78,33 +72,6 @@ class HandControl(threading.Thread):
 
         finally:
             self.sock.close()
-
-
-    def calc_motor_thrust(self, x, y):
-        
-        motor_left, motor_right = 0, 0
-
-        if y == 0:
-            if x < 50:
-                motor_left = 64
-                motor_right = 48
-            elif x > 1000:
-                motor_left = 48
-                motor_right = 64
-            else:
-                motor_left = 64
-                motor_right = 64
-
-        else:
-            if x < 50:
-                motor_left = 64
-                motor_right = 0
-            elif x > 1000:
-                motor_left = 0
-                motor_right = 64
-
-        return (motor_left, motor_right)
-
 
     def exit(self):
         self.stop_flag.set()
