@@ -1,0 +1,27 @@
+# Left LED
+Red	-	PA3
+Green 	-	PA2
+Blue	-	PA1
+# Right LED
+Red	-	PC1
+Green	-	PC3
+Blue	-	PC2
+
+Honk	-	PB2
+Bat ADC -	PA4
+
+# US Sensor
+Trig	-	PA7
+Echo	-	PA6
+
+# Bluetooth Module
+RX	-	PD0
+TX	-	PD1
+State	-	PD2
+
+# Motor control
+B1	-	PD5 (OC1A) 
+B2	-	PD6 (OC1B)
+A1	-	PB6 (OC3A)
+A2	-	PB7 (OC3B)
+

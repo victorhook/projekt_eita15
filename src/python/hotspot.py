@@ -2,6 +2,8 @@ from subprocess import Popen, PIPE
 
 """ Simple API for turning on and off the hotspot to connect with Anoroc """
 
+HOTSPOT_NAME = 'Anoroc'
+
 class Hotspot:
     
     @staticmethod

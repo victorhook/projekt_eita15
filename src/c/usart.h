@@ -2,11 +2,11 @@
 #define USART_H
 
 #ifndef BAUD
-#define BAUD 9600
+#define BAUD 115200
 #endif
 
 #ifndef F_CPU
-#define F_CPU 8000000
+#define F_CPU 20000000
 #endif
 
 /* Calculation for setting the right baud rate in the UBRR register */
@@ -16,10 +16,19 @@
 void init_usart();
 
 /* Sends a single byte through USART */
-void send_byte(uint8_t data);
+void send_byte(uint8_t byte);
 
-/* Reads a single byte through USART */
+/* Reads a single byte through USART
+ * -- NOTE --
+ * This function BLOCKS program.
+ * This can be handled with timers / by host machine */
 uint8_t read_byte();
+
+/* Reads n number of bytes into unsigned 8-bit int buffer */
+void read_bytes(uint8_t *buf, uint8_t len);
+
+/* Sends an array of bytes, with a given length */
+void send_bytes(uint8_t *bytes, uint8_t len);
 
 /* Flushes the Usart stream, removing any data that's stuck */
 void flush();

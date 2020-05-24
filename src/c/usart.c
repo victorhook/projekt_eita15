@@ -1,11 +1,12 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "usart.h"
 
 /* Initializes the Usart with the given baud rate */
 void init_usart() {
 
 	// Baud rate register
-	UBRR0 = 12;
+	UBRR0 = BAUDR;
 
 	// Enable Recieve and transmit
 	UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
@@ -13,25 +14,39 @@ void init_usart() {
 	// Data format: | 1 START | 8 DATA | 1 STOP |
 	UCSR0C |= (1 << UCSZ00) | (1 << UCSZ01);
 
-	// Flush pipe from old data and we're done!
+	// Flush pipe from old data and we're ready!
 	flush();
 
 }
 
-/* Sends a single byte through USART */
+/* Sends a byte of data through Usart */
 void send_byte(uint8_t data) {
-	// Wait until transmit buffer is empty
 	while (! (UCSR0A & (1 << UDRE0)) );
-	// Put data in data register
 	UDR0 = data;
 }
 
-/* Reads a single byte through USART */
+
+/* Reads a single byte through Usart
+ * *** NOTE, this function BLOCKS if no recieving data is coming!!! ***
+ * */
 uint8_t read_byte() {
-	// Wait until data is received
-	while ( !(UCSR0A & (1 << RXC0)) );
-	// Return new data
+
+	while (! ( UCSR0A & (1 << RXC0)));
 	return UDR0;
+}
+
+/* Sends an array of bytes, with a given length */
+void send_bytes(uint8_t *bytes, uint8_t len) {
+	for (uint8_t i = 0; i < len; i++) {
+		send_byte(*bytes++);
+	}
+}
+
+/* Reads n bytes */
+void read_bytes(uint8_t *buf, uint8_t len) {
+	for (uint8_t i = 0; i < len; i++) {
+		*(buf + i) = read_byte();
+	}
 }
 
 /* Flushes the Usart stream, removing any data that's stuck */

@@ -34,7 +34,9 @@ class PiAnoroc:
     """
     def open(self):
 
-        self.log.info('Listening on port %s at attdress %s' % (self.port, self.addr))
+        # Ensure that stop-flag is clear before we start!
+        self.stop_flag.clear()
+        self.log.info('Listening on port %s at address %s' % (self.port, self.addr))
 
         # Open socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -119,6 +121,7 @@ class PiAnoroc:
             # Rewind the stream to start
             img_stream.seek(0)
             img = Image.open(img_stream)
+            img = img.rotate(180)
 
             fps += 1
 
