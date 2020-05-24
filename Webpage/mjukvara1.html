@@ -26,7 +26,7 @@
 
     <div class="sidebarwrapper">
       <ul class="sidebarlist">
-        <a href="mjukvara1.html"><li>Javascript/CSS/HTML</li></a>
+        <a href="mjukvara1.html"><li>Javascript/css/html</li></a>
         <a href="mjukvara2.html"><li>Android app</li></a>
         <a href="mjukvara3.html"><li>GUI</li></a>
         <a href="mjukvara 4.html"><li>C-kod</li></a>
@@ -35,8 +35,38 @@
   <div class="javawrap">
       <img src="./images/1 1gByVzAtW0myl9e9CsGqhw.jpeg" alt="">
       <div class="javatext">
-          <p>För att kunna bygga slidern på förstasidan använde jag mig av en jQuery plugin som heter "Swiper"</p>
-          <p>Genom att studera dens datablad kan man relativt konstruera och designa sen egen "kubslider"</p>
+          <p>Den här hemsidan konstruerades helt i HTML/CSS/Javascript.
+            Med hjälp av en jquery plugin gjordes en kubslider som roterar bilder i en kubanimation</p>
+            <br>
+            <p>Nedan kommer lite exempelkod</p>
+            <br>
+            <p><strong>Javascript-kod som initierar slidern</strong></p>
+            <br>
+            <p>let counter=0;<br>
+              var swiper = new Swiper('.swiper-container', { <br>
+           effect: 'cube',<br>
+           loop: true,<br>
+           pagination: {<br>
+             el: '.swiper-pagination',<br>
+             type: 'bullets',<br>
+             clickable: false,</p><br>
+             <br>
+             <p><strong>Del av Javascript-koden som håller koll på vilken bild som visas</strong></p>
+             <br>
+             <p>slideNextTransitionEnd: function (){<br>
+              counter++;<br>
+              if(counter>3){<br>
+                counter=1;<br>
+              } <br>
+              console.log(counter);<br>
+              if(counter==1){<br>
+                document.getElementById("text1").style.display = "block";<br>
+                document.getElementById("text2").style.display = "none";<br>
+                document.getElementById("text3").style.display = "none"; </p><br>
+                <br>
+                <p>Vill ni läsa mer om hur hemsidan fungerar kan ni kolla in våran github, där kan ni även läs all annan kod!
+                </p> <a href="https://github.com/victorhook/projekt_eita15">GITHUB</a><br>
+                <p>Vill ni lära er mer om hur plugin-en "Swiper" fungerar kan ni läsa om det på deras hemsida <br> <a href="https://swiperjs.com/">SWIPER</a></p>
       </div>
   </div>
 
