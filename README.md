@@ -17,4 +17,5 @@ The video-stream is handled with the help of a Raspberry Pi W Zero, using a Rasp
 The chassis of the vehicle was made with a 3D-printer, using Blender
 
 <h2>Anoroc, the one and only</h2>
+
 ![Image of Anoroc](https://github.com/victorhook/projekt_eita15/blob/master/anoroc.jpg)
