@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <!-- Font style -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;500&display=swap" rel="stylesheet">
+    <!-- Base, local stylesheet -->
+    <link rel="stylesheet" href="../css/base.css">
+
+    <title>Anoroc</title>
+  </head>
+  <body>
+    
+    <!-- Navigation bar -->
+    
+    <div class="container-fluid navbar">
+      <h1><a href="index.html">ANO<b>ROC</b></a></h1>
+      <ul>
+        <li><a href="about.html">Om oss</a></li>
+        <li><a href="../static/Projektrapport.pdf">Rapport</a></li>
+        <li><a href="software.html">Mjukvara</a></li>
+        <li><a href="hardware.html">Hårdvara</a></li>
+      </ul>
+  </div>
+
+  <!-- Main content -->
+    
+  <div class="container-fluid content">
+    <div class="row">
+
+          <!-- Sidebar -->
+
+          <div class="col-lg-3 col-md-4 sidebar">
+            <ul>
+              <li><a href="software_frontend.html">Frontend</a></li>
+              <li><a href="software_gui.html">GUI</a></li>
+              <li><a href="software_backend.html">Fordonskontroll</a></li>
+              <li><a href="software_c.html">Firmware</a></li>
+            </ul>
+          </div>
+
+          <!-- Page information -->
+
+          <div class="col-lg-9 col-md-8 info-content">
+            <h3>Firmware</h3>
+            <hr>
+            <p>
+                Mjukvara som körs på Anoroc kan delas upp i två kategorier:
+            </p>
+            <ul>
+                <li>C, som körs på ATMega1284</li>
+                <li>Raspbian, som körs på Raspberry Pi W Zero</li>
+            </ul>
+
+            <br>
+
+            <h4><b>C</b></h4>
+            <p>
+                C-koden som körs på ATMegan är skriven i utvecklignsmiljön Eclipse. <br>
+                När koden är kompilerad kan den sedan flashas till MCU:n. Normalt sett används jtag för detta, men pga den rådande Covid-19 situationen som
+                rådde då detta projektet gjordes, fanns det ej möjlighet till en jtag. <br>
+                Istället har en Arduino används för att flasha, vilket kan göras genom att först flasha Arduinon med en speciell
+                mjukvara, som tillåter den att agera som en "flasher", där den använder SPI för att programmera den andra MCU:n.
+            </p>
+
+            <p>
+              Själva koden består av en rad olika registermanipulationer där rätt bitar sätts i respektive register. <br>
+              Efter initiering av IO, initieras alla drivrutiner samt avbrottshantering. <br>
+              När allt är redo går ATMegan in i en evig log där den väntar på kommandon. <br>
+              Nedanstående bild visar logiken i huvudprogrammet.</p>
+
+            <img src="../images/c_logic.png" class="img-fluid" alt='C-logic'>
+            
+            <br><br><br>
+
+            <h4><b>Raspbian</b></h4>
+            <p>
+                På Raspberry Pi:en används Raspberry Pi:s egna operativsystem Raspbian, som är en debian-baserad linux-distro. <br>
+                Detta är ett operativsystem med massor av färdiga API:er för att integrera med IO på Pi:en. <br>
+                Själva operativsystemet ligger på ett micro-SD, som den bootar ifrån. <br>
+                För att få Raspberry Pi:en att strömma video över Wifi används dels Python, som med hjälp av <a href="https://picamera.readthedocs.io/en/release-1.13/index.html">picamera</a>
+                API, kan integrera med kameran. Datan skickas sedan över en TCP-förbindelse med hjälp av Pythons socket-bibliotek. <br>
+                För att starta scriptet används systemd, som kan sköta daemons på operativsystemet, samt ett bash-script, som 
+                säkerställer att Pi:en har fått en IP-address av datorn och startar isåfall python-scriptet. <br>
+            </p>
+
+            <br>
+
+            <p>
+                Detaljer kring koden finner den intresserade <a href="https://github.com/victorhook/projekt_eita15/tree/master/src">här</a>.
+            </p>
+
+          </div>
+
+       </div>
+    </div>
+    
+    <!-- Empty script to remove CSS-transition-reload bug that can be casued by Chrome -->
+    <script> </script>
+  </body>
+</html>

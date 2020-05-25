@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <!-- Font style -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;500&display=swap" rel="stylesheet">
+    <!-- Base, local stylesheet -->
+    <link rel="stylesheet" href="../css/base.css">
+
+    <title>Anoroc</title>
+  </head>
+  <body>
+    
+    <!-- Navigation bar -->
+
+    <div class="container-fluid navbar">
+      <h1><a href="index.html">ANO<b>ROC</b></a></h1>
+      <ul>
+        <li><a href="about.html">Om oss</a></li>
+        <li><a href="../static/Projektrapport.pdf">Rapport</a></li>
+        <li><a href="software.html">Mjukvara</a></li>
+        <li><a href="hardware.html">Hårdvara</a></li>
+      </ul>
+  </div>
+
+
+  <!-- Main content -->
+    
+  <div class="container-fluid content">
+    <div class="row">
+
+          <!-- Sidebar -->
+
+          <div class="col-lg-3 col-md-4 sidebar">
+            <ul>
+              <li><a href="software_frontend.html">Frontend</a></li>
+              <li><a href="software_gui.html">GUI</a></li>
+              <li><a href="software_backend.html">Fordonskontroll</a></li>
+              <li><a href="software_c.html">Firmware</a></li>
+            </ul>
+          </div>
+
+          <!-- Page information -->
+
+          <div class="col-lg-9 col-md-8 info-content">
+
+          <div class="col-lg-9 col-md-8 info-content">
+            <h3>Frontend</h3>
+            <hr>
+            <p>
+                Den här hemsidan är skriven i HTML, CSS och Javascript.<br>
+                Med hjälp av en JQuery-plugin har en kubanimation skapats på framsidan, som visar Anoroc. <br>
+                Bootstrap har används för en smidigare och mer flexibel design. <br>
+            </p>
+            <br>
+
+            <p> 
+                Nedan följer kod som initierar kubanimationen. <br>
+                Om du vill använda samma API, hittar du dokumentationen <a href="https://swiperjs.com/api/">här</a>.
+            </p>
+
+            <br>
+            
+            <pre class="prettyprint">
+                var swiper = new Swiper('.swiper-container', {
+                    effect: 'cube',
+                    loop: true,
+                    pagination: {
+                    el: '.swiper-pagination',
+                    type: 'bullets',
+                    clickable: false,
+                }
+            </pre>
+
+            <br>
+
+            <p>
+                Nedanstående kod håller koll på vilken bild som visas, med hjälp av en variabel <i>last_img</i>.<br>
+                Varje bild har en siffra i slutet på sitt namn, som kan användas för att gömma/visa rätt text.
+            </p>
+
+            <br>
+
+            <pre class="prettyprint">
+              slideChangeTransitionEnd: function (){
+                // Query current image
+                img = $('.swiper-slide-active').css('background-image').split('/');
+                // Seperate image name from the whole url
+                img = img[img.length - 1].split('.');
+                // Seperate the image-number from the image name
+                img = img[img.length - 2];
+                // Get the image-number
+                img = img[img.length - 1];
+        
+                // Hide old image-text
+                $('#text' + last_img).hide();
+                // Display the new one
+                $('#text' + img).show();
+                // Update the last-image text variable
+                last_img = img;
+              }
+            </pre>
+
+          </div>
+
+       </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+    
+  </body>
+</html>

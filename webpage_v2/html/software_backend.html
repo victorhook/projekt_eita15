@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <!-- Font style -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;500&display=swap" rel="stylesheet">
+    <!-- Base, local stylesheet -->
+    <link rel="stylesheet" href="../css/base.css">
+
+    <title>Anoroc</title>
+  </head>
+  <body>
+    
+    <!-- Navigation bar -->
+
+    <div class="container-fluid navbar">
+      <h1><a href="index.html">ANO<b>ROC</b></a></h1>
+      <ul>
+        <li><a href="about.html">Om oss</a></li>
+        <li><a href="../static/Projektrapport.pdf">Rapport</a></li>
+        <li><a href="software.html">Mjukvara</a></li>
+        <li><a href="hardware.html">Hårdvara</a></li>
+      </ul>
+  </div>
+
+
+  <!-- Main content -->
+    
+  <div class="container-fluid content">
+    <div class="row">
+
+          <!-- Sidebar -->
+
+          <div class="col-lg-3 col-md-4 sidebar">
+            <ul>
+              <li><a href="software_frontend.html">Frontend</a></li>
+              <li><a href="software_gui.html">GUI</a></li>
+              <li><a href="software_backend.html">Fordonskontroll</a></li>
+              <li><a href="software_c.html">Firmware</a></li>
+            </ul>
+          </div>
+
+          <!-- Page information -->
+
+          <div class="col-lg-9 col-md-8 info-content">
+          <h3>Fordonskontroll</h3>
+          <hr>
+          
+          <p>
+              För att kommunicera med Anoroc används BLE (Bluetooth Low Energy) som kommunikationsprotokoll.<br>
+              För att använda det från datorn används Python, som med hjälp av biblioteket <a href="https://ianharvey.github.io/bluepy-doc/">bluepy</a> 
+              kan skapa en socket-lik kommunkation mellan datorn och Bluetooth-modulen. <br>
+              bluepy är i sin tur byggt på BlueZ, som endast stödjs av Linux. <br><br>
+              För att ta emot video från Anoroc skapas en Wifi-hotspot på datorn med hjälp av <a href="https://wiki.archlinux.org/index.php/NetworkManager">NetworkManager</a>.<br>
+              Därefter startar en server som väntar på en TCP-anslutningen till en förbestämd port. <br>
+              När TCP-förbindelsen är sluten skickas videon via förbindelsen. En fördel med att videon är MJPEG-format är att 
+              varje bild skiljs åt med en bestämd teckenkombination, nämligen hexadecimalt <i>FF D8</i>, som indikerar att en ny bild börjar. <br>
+          </p>
+
+          <br>
+
+          <p>
+              Nedanstående bild visar översiktligt hur kommunikationen går till
+          </p>
+
+          <img src="../images/gui_uml.png" class="img-fluid" alt='GUI control-flow'>
+
+        </div>
+
+
+      </div>
+  </div>
+    
+    <!-- Empty script to remove CSS-transition-reload bug that can be casued by Chrome -->
+    <script> </script>
+</body>
+</html>

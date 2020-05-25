@@ -1,0 +1,87 @@
+html, body {
+    position: relative;
+    height: 100%;
+}
+
+body {
+    background: rgb(170, 170, 170);
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar {
+    background: black;
+}
+
+.navbar h1 {
+    font-size: 3em;
+    margin-left: 20px;
+}
+
+.navbar ul {
+    list-style: none;
+
+}
+
+.navbar ul li {
+    list-style: none;
+    display: block;
+    float: right;
+    padding: 10px 20px 0 20px;
+    font-size: 2em;
+}
+
+.navbar a {
+    color: white;
+    text-decoration: none;
+    transition: color .4s ease;
+}
+
+.navbar a:hover {
+    color: rgb(170, 170, 170);
+}
+
+.content {
+    color: black;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.5em;
+    margin-top: 80px;
+}
+
+.content .sidebar li {
+    padding: 10px 0 ;
+}
+
+.content .sidebar {
+    height: 100%;
+}
+
+.content .info-content ul {
+    list-style: square;
+}
+
+.content h3 {
+    font-weight: 700;
+    margin: 0;
+}
+
+.content ul {
+    list-style: none;
+}
+
+hr {
+    margin-bottom: 50px;
+}
+
+.content a {
+    text-decoration: none;
+    color: black;
+    font-weight: 600;
+    transition: color .4s ease;
+}   
+
+.content a:hover {
+    color: white;
+}   

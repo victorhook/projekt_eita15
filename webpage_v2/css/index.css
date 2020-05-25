@@ -1,0 +1,20 @@
+.swiper-container {
+width: 60%;
+height: 60%;
+position: absolute;
+}
+
+.swiper-slide {
+background-position: center;
+background-size: cover;
+}
+
+.text-container {
+text-align: center;
+margin-top: 50px;
+}
+
+.content {
+    height: 100vh;
+    margin-top: 50px;
+}
