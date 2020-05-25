@@ -114,3 +114,36 @@
     left: 20%;
     text-align: center;
 }
+.komponenttext{
+    font-size: 20px;
+    font-weight: 300;
+    top: 20%;
+    left: 20%;
+    position: absolute;
+    text-align: center;
+
+
+}
+.lista{
+    font-size: 16px;
+    padding: 10px;
+    text-align: left;
+    position: absolute;
+    top: 400%;
+    
+}
+.lista li{
+    margin: 10px;
+}
+.images{
+    position: absolute;
+    left: 30%;
+    top: 10%;
+}
+.omoss{
+    margin-top: 5%;
+    font-size: 16px;
+}
+.omoss li{
+    margin-top: 1%;
+}
